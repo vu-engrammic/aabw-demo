@@ -23,6 +23,9 @@ const { graphCacheVersion } = require('./lib/graph-cache');
 const { loginInteractive, ensureValidToken } = require('../../scripts/mcp-login');
 const { connectCursor, readSetupStatus, FIRST_ONBOARDING_PROMPT } = require('./lib/device-setup');
 const connectors = require('./lib/connectors');
+const { askQuestion } = require('./lib/chat');
+const { buildIngestMetadata } = require('./lib/rbac-filter');
+const { retainFile, healthCheck: hindsightHealth } = require('./lib/hindsight');
 
 let mcpLoginInProgress = false;
 
@@ -170,11 +173,12 @@ async function handle(req, res) {
     if (req.method === 'GET' && url.pathname === '/health') {
       const a = store.analytics();
       const mcp = mcpConfig();
+      const hindsightOk = await hindsightHealth();
       return send(req, res, 200, {
         ok: true,
-        service: 'aabw-org-memory',
+        service: 'mytasco-knowledge',
+        hindsight: hindsightOk ? 'connected' : 'disconnected',
         engrammic: mcp.token ? 'mcp-authenticated' : 'mcp-token-missing',
-        engrammicMcp: mcp.url,
         totals: a.totals,
         workos: auth.workosConfigured(),
         requestId: crypto.randomUUID(),
@@ -630,6 +634,22 @@ async function handle(req, res) {
       store.reset();
       seedIfEmpty();
       return send(req, res, 200, { ok: true, totals: store.analytics().totals });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/chat') {
+      const body = await readBody(req);
+      const query = String(body.query || '').trim();
+      if (!query) return send(req, res, 400, { error: 'Missing query' });
+
+      try {
+        const result = await askQuestion({ query, user });
+        return send(req, res, 200, {
+          ...result,
+          user: auth.publicUser(user),
+        });
+      } catch (err) {
+        return send(req, res, 502, { error: 'Chat service error: ' + err.message });
+      }
     }
 
     return send(req, res, 404, { error: 'Not found', path: url.pathname });
