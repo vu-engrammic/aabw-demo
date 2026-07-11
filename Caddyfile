@@ -1,7 +1,10 @@
 # Caddyfile
 {$DOMAIN:localhost} {
-  reverse_proxy /api/* gateway:8790
-  reverse_proxy /* {
-    to gateway:8790
+  handle /api/* {
+    uri strip_prefix /api
+    reverse_proxy gateway:8790
+  }
+  handle /* {
+    reverse_proxy gateway:8790
   }
 }
