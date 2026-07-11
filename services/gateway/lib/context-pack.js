@@ -7,7 +7,7 @@ function rationaleForHit(hit) {
   if (hit.whyItWorked) reasons.push('documented why-it-worked');
   if (hit.sourceTier === 'authoritative') reasons.push('authoritative tier');
   else if (hit.sourceTier === 'validated') reasons.push('validated tier');
-  else if (hit.sourceTier === 'user-captured') reasons.push('captured in companion');
+  else if (hit.sourceTier === 'user-captured') reasons.push('user captured');
   if (hit.heat >= 3) reasons.push(`high reuse (${hit.heat}×)`);
   if (hit.tags?.includes('adjudicated')) reasons.push('adjudicated winner');
   if (hit.tags?.includes('captured')) reasons.push('recently captured');

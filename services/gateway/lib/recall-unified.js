@@ -8,12 +8,21 @@ function allowDemoFallback() {
   return process.env.AABW_ALLOW_DEMO_FALLBACK === '1' || process.env.AABW_RECALL_LOCAL_ONLY === '1';
 }
 
-async function recallUnified({ query, user, topK = 12, preferMcp = true, forLive = false, silo } = {}) {
+async function recallUnified({
+  query,
+  user,
+  topK = 12,
+  preferMcp = true,
+  forLive = false,
+  silo,
+  fusionMode,
+  asOf,
+} = {}) {
   let mcpFailure = null;
   const effectiveSilo = silo || null;
 
   if (preferMcp && process.env.AABW_RECALL_LOCAL_ONLY !== '1') {
-    const mcp = await recallViaMcp(query, { topK });
+    const mcp = await recallViaMcp(query, { topK, fusionMode, asOf });
     if (mcp.ok) {
       const pack = access.filterContextPack(mcp.pack, user, effectiveSilo);
       return { pack, source: 'engrammic-mcp', mcpError: null };

@@ -18,21 +18,33 @@ function allowDemoFallback() {
   return process.env.AABW_ALLOW_DEMO_FALLBACK === '1' || process.env.AABW_RECALL_LOCAL_ONLY === '1';
 }
 
-async function graphUnified({ user, silo, preferMcp = true, bypassCache = false, forLive = false }) {
-  if (preferMcp && !bypassCache) {
+async function graphUnified({
+  user,
+  silo,
+  preferMcp = true,
+  bypassCache = false,
+  forLive = false,
+  fusionMode,
+  asOf,
+}) {
+  // Requests scoped to a specific fusion mode or point-in-time snapshot are
+  // never cached/served-from-cache — the cache only holds the default view.
+  const isDefaultView = fusionMode === undefined && !asOf;
+
+  if (preferMcp && !bypassCache && isDefaultView) {
     const cached = getCachedGraph();
     if (cached && (!forLive || cached.source === 'engrammic-mcp')) return cached;
   }
 
   if (preferMcp && process.env.AABW_RECALL_LOCAL_ONLY !== '1') {
-    const mcp = await graphViaMcp({ topK: 60, bypassCache: true });
+    const mcp = await graphViaMcp({ topK: 60, bypassCache: true, fusionMode, asOf });
     if (mcp.ok) {
       const graph = {
         ...mcp.graph,
         source: 'engrammic-mcp',
         fetchedAt: new Date().toISOString(),
       };
-      setCachedGraph(graph);
+      if (isDefaultView) setCachedGraph(graph);
       return graph;
     }
 
@@ -64,7 +76,7 @@ async function graphUnified({ user, silo, preferMcp = true, bypassCache = false,
     mcpError: preferMcp ? 'Engrammic MCP unavailable — demo fallback enabled' : null,
     fetchedAt: new Date().toISOString(),
   };
-  setCachedGraph(graph);
+  if (isDefaultView) setCachedGraph(graph);
   return graph;
 }
 

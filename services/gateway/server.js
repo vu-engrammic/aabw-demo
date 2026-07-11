@@ -23,6 +23,9 @@ const { graphCacheVersion } = require('./lib/graph-cache');
 const { loginInteractive, ensureValidToken } = require('../../scripts/mcp-login');
 const { connectCursor, readSetupStatus, FIRST_ONBOARDING_PROMPT } = require('./lib/device-setup');
 const connectors = require('./lib/connectors');
+const { askQuestion } = require('./lib/chat');
+const { buildIngestMetadata } = require('./lib/rbac-filter');
+const { retainFile, healthCheck: hindsightHealth } = require('./lib/hindsight');
 
 let mcpLoginInProgress = false;
 
@@ -31,7 +34,6 @@ const INGEST_FILE_LIMIT = 25 * 1024 * 1024;
 const CORS_ALLOW_HEADERS = 'content-type, accept';
 const ALLOWED_ORIGINS = new Set([
   process.env.WEB_ORIGIN || 'http://127.0.0.1:5173',
-  process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792',
 ]);
 
 seedIfEmpty();
@@ -80,6 +82,12 @@ function requireUser(req, res) {
     return null;
   }
   return user;
+}
+
+function parseBool(value) {
+  if (value === null || value === undefined || value === '') return undefined;
+  if (typeof value === 'boolean') return value;
+  return ['1', 'true', 'yes'].includes(String(value).toLowerCase());
 }
 
 function userSilo(user) {
@@ -165,11 +173,12 @@ async function handle(req, res) {
     if (req.method === 'GET' && url.pathname === '/health') {
       const a = store.analytics();
       const mcp = mcpConfig();
+      const hindsightOk = await hindsightHealth();
       return send(req, res, 200, {
         ok: true,
-        service: 'aabw-org-memory',
+        service: 'mytasco-knowledge',
+        hindsight: hindsightOk ? 'connected' : 'disconnected',
         engrammic: mcp.token ? 'mcp-authenticated' : 'mcp-token-missing',
-        engrammicMcp: mcp.url,
         totals: a.totals,
         workos: auth.workosConfigured(),
         requestId: crypto.randomUUID(),
@@ -210,7 +219,7 @@ async function handle(req, res) {
         mcpAuthenticated: Boolean(mcp.token),
         mcpSource: mcp.source || null,
         onboardingPrompt: FIRST_ONBOARDING_PROMPT,
-        companionUrl: process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792',
+        webUrl: process.env.WEB_ORIGIN || 'http://127.0.0.1:5173',
         loginUrl: 'http://127.0.0.1:8790/mcp/login',
       });
     }
@@ -247,15 +256,15 @@ async function handle(req, res) {
     if (req.method === 'GET' && url.pathname === '/') {
       const accept = String(req.headers.accept || '');
       if (accept.includes('text/html')) {
-        res.writeHead(302, { location: (process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792') + '/' });
+        res.writeHead(302, { location: (process.env.WEB_ORIGIN || 'http://127.0.0.1:5173') + '/' });
         return res.end();
       }
       const mcp = mcpConfig();
       return send(req, res, 200, {
         ok: true,
         service: 'aabw-org-memory',
-        message: 'API gateway — open the Engrammic companion app',
-        companion: process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792',
+        message: 'API gateway — open the Engrammic web UI',
+        web: process.env.WEB_ORIGIN || 'http://127.0.0.1:5173',
         engrammicMcp: mcp.url,
         publicEndpoints: [
           '/health',
@@ -312,7 +321,7 @@ async function handle(req, res) {
       auth.setSessionCookie(res, user);
       live.setSessionLivePersona(user.userId);
       syncHookPersona(user.userId);
-      res.writeHead(302, { location: (process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792') + '/' });
+      res.writeHead(302, { location: (process.env.WEB_ORIGIN || 'http://127.0.0.1:5173') + '/' });
       return res.end();
     }
 
@@ -376,9 +385,11 @@ async function handle(req, res) {
     }
 
     if (req.method === 'GET' && url.pathname === '/graph') {
-      const bypassCache = url.searchParams.get('fresh') === '1';
+      const fusionMode = parseBool(url.searchParams.get('fusion_mode'));
+      const asOf = url.searchParams.get('as_of') || null;
+      const bypassCache = url.searchParams.get('fresh') === '1' || Boolean(asOf) || fusionMode !== undefined;
       const forLive = url.searchParams.get('live') === '1';
-      const graph = await graphUnified({ user, silo, bypassCache, forLive });
+      const graph = await graphUnified({ user, silo, bypassCache, forLive, fusionMode, asOf });
       return send(req, res, 200, { ...graph, silo });
     }
 
@@ -386,11 +397,15 @@ async function handle(req, res) {
       const body = await readBody(req);
       const query = String(body.query || '').trim();
       if (!query) return send(req, res, 400, { error: 'Missing query' });
+      const fusionMode = parseBool(body.fusionMode ?? body.fusion_mode);
+      const asOf = body.asOf || body.as_of || null;
       const { pack, source, mcpError } = await recallUnified({
         query,
         user,
         topK: body.topK || 12,
         silo: silo === access.SILO_DENIED ? userSilo(user) : silo,
+        fusionMode,
+        asOf,
       });
       store.recordQuery(query, (pack.capabilities?.length || 0) + (pack.claims?.length || 0), user.userId);
       return send(req, res, 200, { pack, source, mcpError, user: auth.publicUser(user) });
@@ -434,26 +449,32 @@ async function handle(req, res) {
       const file = multipart.file;
       if (!file?.buffer?.length) return send(req, res, 400, { error: 'Missing file field' });
 
-      const write = access.resolveWriteTarget(silo, user);
-      const result = await ingestFile({
-        buffer: file.buffer,
-        filename: file.filename,
-        mimeType: file.mimeType,
+      const classification = multipart.fields?.classification || 'internal';
+      const team = multipart.fields?.team || user.department;
+
+      const metadata = buildIngestMetadata({
         user,
-        team: write.team,
-        scope: write.scope,
-        ownerId: write.ownerId,
+        classification,
+        team,
+        filename: file.filename,
       });
-      if (!result.ok) {
-        const code = /empty|missing|extract|parse|no text/i.test(result.error || '') ? 400 : 502;
-        return send(req, res, code, result);
+
+      try {
+        const result = await retainFile({
+          buffer: file.buffer,
+          filename: file.filename,
+          mimeType: file.mimeType,
+          metadata,
+        });
+        return send(req, res, 200, {
+          ok: true,
+          documentId: result.id || result.document_id,
+          metadata,
+          user: auth.publicUser(user),
+        });
+      } catch (err) {
+        return send(req, res, 502, { error: 'Hindsight ingest failed: ' + err.message });
       }
-      return send(req, res, 200, {
-        ...result,
-        user: auth.publicUser(user),
-        team: write.team,
-        scope: write.scope,
-      });
     }
 
     if (req.method === 'GET' && url.pathname === '/connectors') {
@@ -557,7 +578,7 @@ async function handle(req, res) {
         (aNode && store.canSee(user, aNode) && inSilo(aNode, silo, user)) ||
         (bNode && store.canSee(user, bNode) && inSilo(bNode, silo, user));
       if (!canResolve) return send(req, res, 403, { error: 'Not allowed to resolve this conflict in current silo' });
-      const result = store.resolveConflict(parts[1], {
+      const result = await store.resolveConflict(parts[1], {
         winnerId: body.winnerId,
         note: body.note,
         resolvedBy: user.userId,
@@ -619,6 +640,22 @@ async function handle(req, res) {
       store.reset();
       seedIfEmpty();
       return send(req, res, 200, { ok: true, totals: store.analytics().totals });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/chat') {
+      const body = await readBody(req);
+      const query = String(body.query || '').trim();
+      if (!query) return send(req, res, 400, { error: 'Missing query' });
+
+      try {
+        const result = await askQuestion({ query, user });
+        return send(req, res, 200, {
+          ...result,
+          user: auth.publicUser(user),
+        });
+      } catch (err) {
+        return send(req, res, 502, { error: 'Chat service error: ' + err.message });
+      }
     }
 
     return send(req, res, 404, { error: 'Not found', path: url.pathname });

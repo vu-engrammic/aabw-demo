@@ -46,7 +46,7 @@ async function captureUnified(body, user, team) {
   const content = String(body.content || '').trim();
   const whyItWorked = String(body.whyItWorked || '').trim();
   const sourceUri = String(body.sourceUri || body.source || '').trim();
-  const harness = String(body.harness || 'companion').trim();
+  const harness = String(body.harness || 'web').trim();
 
   if (!title || !content) {
     return { ok: false, error: 'Missing title or content' };

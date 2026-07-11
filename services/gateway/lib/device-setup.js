@@ -7,8 +7,8 @@ const GLOBAL_MCP_JSON = path.join(os.homedir(), '.cursor', 'mcp.json');
 const INSTALL_NAME = 'engrammic';
 const FIRST_ONBOARDING_PROMPT = 'Start Engrammic onboarding';
 const RULE_MARKERS = {
-  START: '<!-- engrammic-companion:start -->',
-  END: '<!-- engrammic-companion:end -->',
+  START: '<!-- engrammic:start -->',
+  END: '<!-- engrammic:end -->',
 };
 const SHARED_SKILL_DIR = ['.agents', 'skills', INSTALL_NAME];
 const INSTALL_MARKER = '.engrammic-install.json';
@@ -46,17 +46,17 @@ function copyDir(src, dest, { skip = new Set() } = {}) {
 
 function agentRuleContent() {
   return `---
-description: Engrammic org memory — live recall, governed context, and companion control plane
+description: Engrammic org memory — live recall and governed context
 alwaysApply: true
 ---
 
 ${RULE_MARKERS.START}
 
-You are connected to **Engrammic Org Memory** via the companion app.
+You are connected to **Engrammic Org Memory**.
 
-- **Live recall** runs automatically through agent hooks (Cursor, Claude Code, etc.) — the companion surfaces relevant org memory when you work.
-- **Engrammic MCP** provides recall, learn, trace, and graph for the org brain at \`https://beta.engrammic.ai/mcp/\`.
-- **Companion UI**: runs in the Engrammic desktop app or at http://127.0.0.1:8792/
+- **Live recall** runs automatically through agent hooks (Cursor, Claude Code, etc.).
+- **Engrammic MCP** provides recall, learn, trace, and graph at \`https://beta.engrammic.ai/mcp/\`.
+- **Web UI**: http://127.0.0.1:5173/
 - On first run or when the user asks to onboard, follow the \`engrammic\` skill onboarding flow (\`${FIRST_ONBOARDING_PROMPT}\`).
 
 ${RULE_MARKERS.END}
@@ -133,7 +133,7 @@ function installSkill(home = repoRoot()) {
     `${JSON.stringify(
       {
         name: INSTALL_NAME,
-        installedBy: 'engrammic-companion',
+        installedBy: 'engrammic',
         version: '1.0.0',
         installedAt: new Date().toISOString(),
         home,
@@ -157,7 +157,7 @@ function installHooks(home = repoRoot()) {
       {
         home,
         gateway: process.env.AABW_GATEWAY || 'http://127.0.0.1:8790',
-        companion: process.env.AABW_COMPANION_PORT || '8792',
+        web: process.env.WEB_ORIGIN || 'http://127.0.0.1:5173',
         installedAt: new Date().toISOString(),
         onboardingPrompt: FIRST_ONBOARDING_PROMPT,
       },
@@ -200,7 +200,6 @@ const PORTABLE_MANIFEST = [
   'scripts',
   'hooks',
   'skills',
-  'apps/companion/aabw-companion.exe',
   'package.json',
   'package-lock.json',
   'node_modules',
@@ -249,9 +248,6 @@ function readSetupStatus(home = resolveHome()) {
   const configOk = fs.existsSync(path.join(cursorDir(), 'aabw.json'));
   const userRuleOk = fs.existsSync(path.join(cursorDir(), 'rules', 'engrammic-context.mdc'));
   const globalMcpOk = Boolean(readMcpTokenFromAny(home));
-  const companionBin =
-    fs.existsSync(path.join(home, 'apps', 'companion', 'aabw-companion.exe')) ||
-    fs.existsSync(path.join(home, 'apps', 'companion', 'aabw-companion'));
   const portableOk = fs.existsSync(path.join(PORTABLE_ROOT, 'install.json'));
 
   return {
@@ -264,7 +260,6 @@ function readSetupStatus(home = resolveHome()) {
     configInstalled: configOk,
     userRuleInstalled: userRuleOk,
     globalMcpSynced: globalMcpOk,
-    companionBinary: companionBin,
     onboardingPrompt: FIRST_ONBOARDING_PROMPT,
     ready: skillOk && hooksOk && configOk,
     agentConnected: skillOk && hooksOk && userRuleOk,
@@ -296,7 +291,7 @@ function connectAgent({ home = repoRoot(), projectRoot = null, syncMcp = true } 
       'Sign in via Integrations → Connect MCP',
       'Restart your agent (Cursor, Claude Code, Codex, …) so hooks + skill load',
       `In agent chat, send: ${FIRST_ONBOARDING_PROMPT}`,
-      'Open Engrammic Companion from the desktop app (system tray)',
+      'Open http://127.0.0.1:5173/ in your browser',
     ],
   };
 }

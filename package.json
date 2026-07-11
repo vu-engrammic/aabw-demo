@@ -7,7 +7,8 @@
     "start": "node scripts/start-stack.js",
     "dev": "node scripts/dev-foreground.js",
     "build": "node scripts/build-installer.js",
-    "gateway": "node services/gateway/server.js"
+    "gateway": "node services/gateway/server.js",
+    "smoke": "node scripts/smoke.js"
   },
   "workspaces": [
     "services/gateway"

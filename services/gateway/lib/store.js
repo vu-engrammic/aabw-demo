@@ -10,6 +10,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const access = require('./access');
+const { mcpConfig } = require('./mcp-config');
+const { callMcpTool } = require('./mcp-session');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const STORE_PATH = path.join(DATA_DIR, 'org-memory.json');
@@ -101,7 +103,7 @@ function addConflict({ nodeA, nodeB, topic, summary, preferred }) {
   return conflict;
 }
 
-function resolveConflict(conflictId, { winnerId, note, resolvedBy }) {
+async function resolveConflict(conflictId, { winnerId, note, resolvedBy }) {
   const store = load();
   const conflict = store.conflicts.find((c) => c.id === conflictId);
   if (!conflict) throw new Error('Conflict not found');
@@ -111,6 +113,19 @@ function resolveConflict(conflictId, { winnerId, note, resolvedBy }) {
   const winner = store.nodes.find((n) => n.id === winnerId);
   const loser = store.nodes.find((n) => n.id === loserId);
   if (!winner || !loser) throw new Error('Conflict nodes missing');
+
+  // Prefer the Engrammic MCP resolver when authenticated, so the org-memory
+  // graph stays authoritative; the local store still mirrors the resolution
+  // below so the demo UI reflects it immediately.
+  let mcpResolution = null;
+  if (mcpConfig().token) {
+    const mcp = await callMcpTool('resolve_conflict', {
+      conflict_id: conflictId,
+      winner_id: winnerId,
+      supersede: true,
+    });
+    mcpResolution = mcp.ok ? { ok: true, data: mcp.data } : { ok: false, error: mcp.error };
+  }
 
   loser.supersededBy = winnerId;
   addEdge('SUPERSEDES', winnerId, loserId);
@@ -134,7 +149,7 @@ function resolveConflict(conflictId, { winnerId, note, resolvedBy }) {
   conflict.resolvedBy = resolvedBy || null;
   conflict.resolvedAt = new Date().toISOString();
   save();
-  return { conflict, belief };
+  return { conflict, belief, mcpResolution };
 }
 
 function recordQuery(query, hitCount, userId) {

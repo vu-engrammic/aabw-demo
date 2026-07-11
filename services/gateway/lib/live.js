@@ -195,6 +195,8 @@ async function finalizePromptIngest({
   });
 
   notifyGraphStale();
+
+  return { pack, source, mcpError, suggestion };
 }
 
 function ingestPrompt(body) {
@@ -236,7 +238,7 @@ function ingestPrompt(body) {
     workspaceLabel: wsLabel,
   });
 
-  setImmediate(() => {
+  const runFinalize = () =>
     finalizePromptIngest({
       historyId,
       text,
@@ -247,21 +249,65 @@ function ingestPrompt(body) {
       conversationId: body.conversationId || null,
       generationId: body.generationId || null,
       model: body.model || null,
-    }).catch((err) => {
-      pushEvent('prompt', {
+    });
+
+  const emitFailure = (err) => {
+    const fallbackPack = {
+      query: text,
+      source: 'engrammic-mcp',
+      capabilities: [],
+      claims: [],
+      beliefs: [],
+      observations: [],
+      cautions: [],
+      excluded: [],
+    };
+    pushEvent('prompt', {
+      id: historyId,
+      at: new Date().toISOString(),
+      prompt: text,
+      harness: pendingEntry.harness,
+      workspaceLabel: wsLabel,
+      pack: fallbackPack,
+      source: 'engrammic-mcp',
+      mcpError: err?.message || 'Live recall failed',
+      suggestion: null,
+      user: auth.publicUser(user),
+    });
+    notifyGraphStale();
+    return fallbackPack;
+  };
+
+  // Hook callers that need the recall pack back in the same request (e.g. to
+  // inject it into agent context) pass `wait: true` and block on the recall.
+  // Fire-and-forget callers (live monitor UI) omit it and get an immediate ack
+  // while the recall completes in the background and streams over SSE.
+  if (body.wait) {
+    return runFinalize()
+      .then(({ pack, source, mcpError, suggestion }) => ({
+        ok: true,
+        accepted: true,
         id: historyId,
-        at: new Date().toISOString(),
-        prompt: text,
-        harness: pendingEntry.harness,
-        workspaceLabel: wsLabel,
-        pack: { query: text, source: 'engrammic-mcp', capabilities: [], claims: [], beliefs: [], observations: [], cautions: [], excluded: [] },
+        async: false,
+        pack,
+        source,
+        mcpError,
+        suggestion,
+      }))
+      .catch((err) => ({
+        ok: true,
+        accepted: true,
+        id: historyId,
+        async: false,
+        pack: emitFailure(err),
         source: 'engrammic-mcp',
         mcpError: err?.message || 'Live recall failed',
         suggestion: null,
-        user: auth.publicUser(user),
-      });
-      notifyGraphStale();
-    });
+      }));
+  }
+
+  setImmediate(() => {
+    runFinalize().catch(emitFailure);
   });
 
   return Promise.resolve({ ok: true, accepted: true, id: historyId, async: true });
