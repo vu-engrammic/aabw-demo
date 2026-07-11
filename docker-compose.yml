@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:latest
+    container_name: hindsight
+    ports:
+      - "8888:8888"
+      - "9999:9999"
+    environment:
+      - HINDSIGHT_API_LLM_PROVIDER=gemini
+      - HINDSIGHT_API_LLM_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - hindsight-data:/home/hindsight/.pg0
+    restart: unless-stopped
+
+  gateway:
+    build: ./services/gateway
+    container_name: gateway
+    ports:
+      - "8790:8790"
+    environment:
+      - GATEWAY_PORT=8790
+      - HINDSIGHT_URL=http://hindsight:8888
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SESSION_SECRET=${SESSION_SECRET:-dev-secret-change-me}
+    depends_on:
+      - hindsight
+    volumes:
+      - ./services/gateway:/app
+      - /app/node_modules
+
+volumes:
+  hindsight-data:
