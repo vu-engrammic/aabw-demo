@@ -31,7 +31,6 @@ const INGEST_FILE_LIMIT = 25 * 1024 * 1024;
 const CORS_ALLOW_HEADERS = 'content-type, accept';
 const ALLOWED_ORIGINS = new Set([
   process.env.WEB_ORIGIN || 'http://127.0.0.1:5173',
-  process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792',
 ]);
 
 seedIfEmpty();
@@ -216,7 +215,7 @@ async function handle(req, res) {
         mcpAuthenticated: Boolean(mcp.token),
         mcpSource: mcp.source || null,
         onboardingPrompt: FIRST_ONBOARDING_PROMPT,
-        companionUrl: process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792',
+        webUrl: process.env.WEB_ORIGIN || 'http://127.0.0.1:5173',
         loginUrl: 'http://127.0.0.1:8790/mcp/login',
       });
     }
@@ -253,15 +252,15 @@ async function handle(req, res) {
     if (req.method === 'GET' && url.pathname === '/') {
       const accept = String(req.headers.accept || '');
       if (accept.includes('text/html')) {
-        res.writeHead(302, { location: (process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792') + '/' });
+        res.writeHead(302, { location: (process.env.WEB_ORIGIN || 'http://127.0.0.1:5173') + '/' });
         return res.end();
       }
       const mcp = mcpConfig();
       return send(req, res, 200, {
         ok: true,
         service: 'aabw-org-memory',
-        message: 'API gateway — open the Engrammic companion app',
-        companion: process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792',
+        message: 'API gateway — open the Engrammic web UI',
+        web: process.env.WEB_ORIGIN || 'http://127.0.0.1:5173',
         engrammicMcp: mcp.url,
         publicEndpoints: [
           '/health',
@@ -318,7 +317,7 @@ async function handle(req, res) {
       auth.setSessionCookie(res, user);
       live.setSessionLivePersona(user.userId);
       syncHookPersona(user.userId);
-      res.writeHead(302, { location: (process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792') + '/' });
+      res.writeHead(302, { location: (process.env.WEB_ORIGIN || 'http://127.0.0.1:5173') + '/' });
       return res.end();
     }
 

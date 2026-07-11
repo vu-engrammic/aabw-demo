@@ -31,7 +31,7 @@ function ensureGateway(home) {
     stdio: 'ignore',
     windowsHide: true,
     shell: false,
-    env: { ...process.env, AABW_SKIP_COMPANION: '1' },
+    env: { ...process.env },
   }).unref();
 
   return waitFor(`${GATEWAY}/health`);
@@ -66,7 +66,7 @@ async function runSessionBridge() {
     // ignore parse errors
   }
 
-  // Gateway only — companion UI is launched by the Engrammic desktop app / installer.
+  // Gateway only — web UI is at http://127.0.0.1:5173/
   await ensureGateway(home);
   await postJson('/live/session', {
     harness: 'cursor',

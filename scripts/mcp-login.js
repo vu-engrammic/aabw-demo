@@ -66,7 +66,7 @@ async function registerClient() {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
-      client_name: 'aabw-companion-local',
+      client_name: 'aabw-local',
       redirect_uris: [REDIRECT_URI],
       grant_types: ['authorization_code', 'refresh_token'],
       response_types: ['code'],
@@ -231,7 +231,7 @@ async function loginInteractive() {
         const saved = saveToken(tokenResponse);
 
         res.writeHead(200, { 'content-type': 'text/html' });
-        res.end('<h1>Engrammic connected</h1><p>You can close this tab and return to the companion.</p>');
+        res.end('<h1>Engrammic connected</h1><p>You can close this tab.</p>');
         server.close();
         resolve(saved);
       } catch (error) {

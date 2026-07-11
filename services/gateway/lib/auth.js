@@ -14,7 +14,7 @@ function sessionSecret() {
 }
 
 function defaultRedirectUri() {
-  return process.env.WORKOS_REDIRECT_URI || 'http://127.0.0.1:8792/api/auth/callback';
+  return process.env.WORKOS_REDIRECT_URI || 'http://127.0.0.1:5173/api/auth/callback';
 }
 
 function workosConfigured() {
@@ -31,9 +31,7 @@ function workosConfigStatus() {
   const redirectUri = defaultRedirectUri();
   const redirectUrisToRegister = [
     redirectUri,
-    'http://127.0.0.1:8792/api/auth/callback',
     'http://127.0.0.1:5173/api/auth/callback',
-    'http://localhost:8792/api/auth/callback',
     'http://localhost:5173/api/auth/callback',
   ].filter((uri, i, arr) => arr.indexOf(uri) === i);
 
