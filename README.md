@@ -50,3 +50,15 @@ npm run smoke   # seed → ACL recall → conflict resolve → trace → analyti
 ```
 
 See [docs/architecture.md](docs/architecture.md), [docs/plan.md](docs/plan.md), [docs/demo-script.md](docs/demo-script.md).
+
+## CI/CD
+
+`.github/workflows/deploy.yml` builds the web app and Gateway Docker image on every push/PR to
+`main`, then (on `main` only) runs `pulumi up` and deploys to the GCP VM via SSH.
+
+Required GitHub Secrets:
+- `GCP_PROJECT_ID`: Your GCP project ID
+- `GCP_SA_KEY`: Service account JSON key
+- `PULUMI_ACCESS_TOKEN`: Pulumi access token
+- `VM_SSH_KEY`: SSH private key for VM access
+- `GEMINI_API_KEY`: Gemini API key

@@ -1,0 +1,83 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd services/gateway && npm ci
+          cd ../../apps/web && npm ci
+
+      - name: Build web app
+        run: cd apps/web && npm run build
+
+      - name: Build Gateway Docker image
+        run: |
+          docker build -t mytasco-gateway:${{ github.sha }} ./services/gateway
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Pulumi
+        uses: pulumi/actions@v5
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Pulumi up
+        run: |
+          cd infra
+          npm ci
+          pulumi stack select prod --create
+          pulumi up --yes
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+      - name: Deploy to VM
+        run: |
+          echo "${{ secrets.VM_SSH_KEY }}" > /tmp/ssh_key
+          chmod 600 /tmp/ssh_key
+          VM_IP=$(cd infra && pulumi stack output vmIp)
+          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ubuntu@$VM_IP << 'EOF'
+            cd /opt/mytasco
+            docker compose pull
+            docker compose up -d
+          EOF
+
+      - name: Upload static assets
+        run: |
+          BUCKET=$(cd infra && pulumi stack output staticBucketUrl | sed 's|https://storage.googleapis.com/||')
+          gsutil -m rsync -r apps/web/dist gs://$BUCKET
