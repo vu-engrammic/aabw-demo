@@ -1,0 +1,44 @@
+# docker-compose.prod.yml
+version: "3.8"
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:latest
+    container_name: hindsight
+    environment:
+      - HINDSIGHT_API_LLM_PROVIDER=gemini
+      - HINDSIGHT_API_LLM_API_KEY=${GEMINI_API_KEY}
+    volumes:
+      - hindsight-data:/home/hindsight/.pg0
+    restart: unless-stopped
+
+  gateway:
+    image: mytasco-gateway:latest
+    container_name: gateway
+    environment:
+      - GATEWAY_PORT=8790
+      - HINDSIGHT_URL=http://hindsight:8888
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - SESSION_SECRET=${SESSION_SECRET}
+    depends_on:
+      - hindsight
+    restart: unless-stopped
+
+volumes:
+  hindsight-data:
+  caddy-data:
+  caddy-config:
