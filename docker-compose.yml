@@ -21,6 +21,7 @@ services:
       - "8790:8790"
     environment:
       - GATEWAY_PORT=8790
+      - BIND_HOST=0.0.0.0
       - HINDSIGHT_URL=http://hindsight:8888
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - SESSION_SECRET=${SESSION_SECRET:-dev-secret-change-me}

@@ -664,7 +664,8 @@ async function handle(req, res) {
   }
 }
 
-http.createServer(handle).listen(PORT, '127.0.0.1', () => {
-  console.log(`AABW org-memory gateway on http://127.0.0.1:${PORT}`);
+const BIND_HOST = process.env.BIND_HOST || '127.0.0.1';
+http.createServer(handle).listen(PORT, BIND_HOST, () => {
+  console.log(`My Tasco gateway on http://${BIND_HOST}:${PORT}`);
   connectors.startAutoSync(() => ({ userId: 'system', department: 'Engineering', fullName: 'AABW Sync' }));
 });
