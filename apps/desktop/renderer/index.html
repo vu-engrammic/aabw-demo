@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Engrammic Companion</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <img class="brand-logo" src="logo.png" alt="Engrammic" width="120" height="48" />
+      <h1>Connect your workspace</h1>
+      <p class="lede">Install hooks + skill, sign in to MCP, then paste one prompt in Cursor.</p>
+    </header>
+
+    <ol class="steps" id="steps">
+      <li id="step-stack"><span class="dot"></span>Start companion stack</li>
+      <li id="step-device"><span class="dot"></span>Device setup (skill + hooks)</li>
+      <li id="step-mcp"><span class="dot"></span>Engrammic MCP sign-in</li>
+      <li id="step-cursor"><span class="dot"></span>Connect Cursor</li>
+      <li id="step-prompt"><span class="dot"></span>Restart Cursor &amp; send prompt</li>
+    </ol>
+
+    <div class="actions">
+      <button type="button" id="btn-setup" class="primary">Run setup</button>
+      <button type="button" id="btn-mcp">Sign in MCP</button>
+      <button type="button" id="btn-cursor">Connect Cursor</button>
+      <button type="button" id="btn-companion">Open companion</button>
+    </div>
+
+    <section class="prompt panel">
+      <label for="prompt-text">Onboarding prompt</label>
+      <div class="prompt-row">
+        <code id="prompt-text">Start Engrammic onboarding</code>
+        <button type="button" id="btn-copy" class="chip">Copy</button>
+      </div>
+      <p class="hint">Paste into Cursor after restart.</p>
+    </section>
+
+    <pre class="log" id="log"></pre>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

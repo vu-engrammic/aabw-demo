@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "engrammic": {
+      "type": "http",
+      "url": "https://beta.engrammic.ai/mcp/",
+      "headers": {}
+    }
+  }
+}

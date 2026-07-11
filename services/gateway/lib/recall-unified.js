@@ -1,4 +1,5 @@
 const store = require('./store');
+const access = require('./access');
 const { buildContextPack } = require('./context-pack');
 const { recallViaMcp } = require('./engrammic-mcp');
 const { mcpConfig } = require('./mcp-config');
@@ -7,13 +8,15 @@ function allowDemoFallback() {
   return process.env.AABW_ALLOW_DEMO_FALLBACK === '1' || process.env.AABW_RECALL_LOCAL_ONLY === '1';
 }
 
-async function recallUnified({ query, user, topK = 12, preferMcp = true, forLive = false }) {
+async function recallUnified({ query, user, topK = 12, preferMcp = true, forLive = false, silo } = {}) {
   let mcpFailure = null;
+  const effectiveSilo = silo || null;
 
   if (preferMcp && process.env.AABW_RECALL_LOCAL_ONLY !== '1') {
     const mcp = await recallViaMcp(query, { topK });
     if (mcp.ok) {
-      return { pack: mcp.pack, source: 'engrammic-mcp', mcpError: null };
+      const pack = access.filterContextPack(mcp.pack, user, effectiveSilo);
+      return { pack, source: 'engrammic-mcp', mcpError: null };
     }
     mcpFailure = mcp.error || 'Engrammic recall failed';
     const { token } = mcpConfig();
@@ -40,7 +43,7 @@ async function recallUnified({ query, user, topK = 12, preferMcp = true, forLive
     };
   }
 
-  const result = store.recall({ query, user, topK });
+  const result = store.recall({ query, user, topK, silo: effectiveSilo });
   return {
     pack: { ...buildContextPack(query, result), source: 'local-demo' },
     source: 'local-demo',

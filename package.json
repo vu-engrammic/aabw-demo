@@ -4,28 +4,12 @@
   "private": true,
   "description": "Engrammic Org Memory — pop-up control plane for MCP-native organizational AI memory",
   "scripts": {
-    "free-ports": "node scripts/free-ports.js",
-    "start": "node scripts/free-ports.js && node scripts/run-all.js",
+    "start": "node scripts/start-stack.js",
     "dev": "node scripts/dev-foreground.js",
-    "gateway": "node services/gateway/server.js",
-    "web": "npm --prefix apps/web run dev",
-    "smoke": "node scripts/smoke.js",
-    "live-smoke": "node scripts/live-smoke.js",
-    "ingest-smoke": "node scripts/ingest-smoke.js",
-    "connectors:setup": "node scripts/connectors/setup.js",
-    "connectors:probe": "node scripts/connectors/probe.js",
-    "gmail:login": "node scripts/connectors/gmail-login.js",
-    "install:global": "node scripts/install-global-hooks.js",
-    "companion:verify": "node scripts/companion-ui-verify.mjs",
-    "companion:loop": "powershell -File scripts/companion-ui-loop.ps1",
-    "companion:feature:loop": "powershell -File scripts/companion-feature-loop.ps1",
-    "companion:build": "cd apps/companion && go build -o aabw-companion.exe .",
-    "companion": "cd apps/companion && go run .",
-    "mcp:login": "node scripts/mcp-login.js",
-    "mcp:status": "node scripts/check-mcp.js"
+    "build": "node scripts/build-installer.js",
+    "gateway": "node services/gateway/server.js"
   },
   "workspaces": [
-    "apps/web",
     "services/gateway"
   ],
   "dependencies": {

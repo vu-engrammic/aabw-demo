@@ -42,7 +42,7 @@ async function graphUnified({ user, silo, preferMcp = true, bypassCache = false,
         edges: [],
         source: 'engrammic-mcp',
         mcpError: mcp.error || 'Engrammic MCP unavailable',
-        authHint: 'Run npm run mcp:login or open http://127.0.0.1:8790/mcp/login',
+        authHint: 'Sign in from Integrations → Connect MCP',
         fetchedAt: new Date().toISOString(),
       };
     }

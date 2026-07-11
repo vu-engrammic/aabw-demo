@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Foreground dev mode — logs in terminal (gateway + vite). Use npm start for silent background.
+ * Foreground dev mode — gateway logs in terminal.
  */
 const { spawn, execSync } = require('node:child_process');
 const http = require('node:http');
@@ -40,11 +40,8 @@ start(process.execPath, ['services/gateway/server.js']);
 
 wait('http://127.0.0.1:8790/health')
   .then(() => {
-    start('npm', ['--prefix', 'apps/web', 'run', 'dev']);
-    console.log('\nAABW dev (foreground):');
-    console.log('  Gateway  http://127.0.0.1:8790/health');
-    console.log('  Web      http://127.0.0.1:5173/\n');
-    console.log('For silent background + companion window, use: npm start\n');
+    console.log('\nEngrammic dev gateway: http://127.0.0.1:8790/health');
+    console.log('UI: open the Engrammic desktop app\n');
   })
   .catch((e) => {
     console.error(e.message);

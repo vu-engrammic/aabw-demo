@@ -1,35 +1,40 @@
-require('dotenv').config({ path: require('node:path').join(__dirname, '..', '..', '.env') });
+const { loadEnv } = require('./lib/env');
+loadEnv();
 
 const http = require('node:http');
 const { URL } = require('node:url');
 const crypto = require('node:crypto');
 
 const store = require('./lib/store');
+const access = require('./lib/access');
 const { seedIfEmpty } = require('./lib/seed-org');
 const auth = require('./lib/auth');
 const live = require('./lib/live');
 const { resolveLiveUser } = require('./lib/live-persona');
 const { syncHookPersona, clearHookPersona } = require('./lib/hook-config');
 const { recallUnified } = require('./lib/recall-unified');
-const { ingestDocument } = require('./lib/ingest/pipeline');
+const { ingestDocument, ingestFile } = require('./lib/ingest/pipeline');
+const { parseMultipart } = require('./lib/ingest/multipart');
 const { graphUnified } = require('./lib/graph-unified');
 const { mcpConfig } = require('./lib/mcp-config');
 const { callMcpTool } = require('./lib/mcp-session');
 const { traceViaMcp } = require('./lib/engrammic-mcp');
 const { graphCacheVersion } = require('./lib/graph-cache');
 const { loginInteractive, ensureValidToken } = require('../../scripts/mcp-login');
+const { connectCursor, readSetupStatus, FIRST_ONBOARDING_PROMPT } = require('./lib/device-setup');
 const connectors = require('./lib/connectors');
 
 let mcpLoginInProgress = false;
 
 const PORT = Number(process.env.GATEWAY_PORT || 8790);
+const INGEST_FILE_LIMIT = 25 * 1024 * 1024;
+const CORS_ALLOW_HEADERS = 'content-type, accept';
 const ALLOWED_ORIGINS = new Set([
   process.env.WEB_ORIGIN || 'http://127.0.0.1:5173',
   process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792',
 ]);
 
 seedIfEmpty();
-ensureValidToken().catch(() => {});
 
 function corsOrigin(req) {
   const origin = String(req.headers.origin || '');
@@ -44,7 +49,7 @@ function send(req, res, code, body) {
     res.setHeader('access-control-allow-origin', corsOrigin(req));
     res.setHeader('access-control-allow-credentials', 'true');
     res.setHeader('access-control-allow-methods', 'GET,POST,OPTIONS');
-    res.setHeader('access-control-allow-headers', 'content-type');
+    res.setHeader('access-control-allow-headers', CORS_ALLOW_HEADERS);
   }
   res.end(JSON.stringify(body, null, 2));
 }
@@ -78,20 +83,15 @@ function requireUser(req, res) {
 }
 
 function userSilo(user) {
-  return user?.department || 'Company';
+  return access.userSilo(user);
 }
 
-function inSilo(node, silo) {
-  if (!node || silo === '__denied__') return false;
-  return node.team === silo;
+function inSilo(node, silo, user) {
+  return access.inSilo(node, silo, user);
 }
 
 function selectedSilo(url, user) {
-  const locked = userSilo(user);
-  const requested = String(url.searchParams.get('silo') || '').trim();
-  if (!requested || requested === locked) return locked;
-  // Cross-silo requests are permission-walled — return empty scope.
-  return '__denied__';
+  return access.selectedSilo(url, user);
 }
 
 async function handle(req, res) {
@@ -100,7 +100,7 @@ async function handle(req, res) {
       'access-control-allow-origin': corsOrigin(req),
       'access-control-allow-credentials': 'true',
       'access-control-allow-methods': 'GET,POST,OPTIONS',
-      'access-control-allow-headers': 'content-type',
+      'access-control-allow-headers': CORS_ALLOW_HEADERS,
     });
     return res.end();
   }
@@ -202,6 +202,29 @@ async function handle(req, res) {
       });
     }
 
+    if (req.method === 'GET' && url.pathname === '/setup/status') {
+      const status = readSetupStatus();
+      const mcp = mcpConfig();
+      return send(req, res, 200, {
+        ...status,
+        mcpAuthenticated: Boolean(mcp.token),
+        mcpSource: mcp.source || null,
+        onboardingPrompt: FIRST_ONBOARDING_PROMPT,
+        companionUrl: process.env.COMPANION_ORIGIN || 'http://127.0.0.1:8792',
+        loginUrl: 'http://127.0.0.1:8790/mcp/login',
+      });
+    }
+
+    if (req.method === 'POST' && (url.pathname === '/setup/connect-cursor' || url.pathname === '/setup/connect-agent')) {
+      try {
+        const { connectAgent } = require('./lib/device-setup');
+        const result = connectAgent({ syncMcp: true });
+        return send(req, res, 200, { ok: true, ...result, status: readSetupStatus() });
+      } catch (err) {
+        return send(req, res, 500, { ok: false, error: err.message || String(err) });
+      }
+    }
+
     if (req.method === 'GET' && url.pathname === '/mcp/login') {
       if (mcpLoginInProgress) {
         res.statusCode = 200;
@@ -218,9 +241,7 @@ async function handle(req, res) {
         });
       res.statusCode = 200;
       res.setHeader('content-type', 'text/html; charset=utf-8');
-      return res.end(
-        '<h1>Connecting Engrammic</h1><p>Complete sign-in in the browser window. Then reload the companion Graph tab.</p>'
-      );
+      return res.end('<h1>Connecting Engrammic</h1><p>Complete sign-in in the browser window.</p>');
     }
 
     if (req.method === 'GET' && url.pathname === '/') {
@@ -240,6 +261,11 @@ async function handle(req, res) {
           '/health',
           '/live/state',
           '/live/stream',
+          '/setup/status',
+          '/setup/connect-cursor',
+          '/setup/connect-agent',
+          '/mcp/status',
+          '/mcp/login',
           '/auth/personas',
           '/auth/me',
           '/auth/login',
@@ -255,6 +281,10 @@ async function handle(req, res) {
       });
     }
 
+    if (req.method === 'GET' && url.pathname === '/auth/workos/status') {
+      return send(req, res, 200, auth.workosConfigStatus());
+    }
+
     if (req.method === 'POST' && url.pathname === '/auth/login') {
       const body = await readBody(req);
       const user = auth.devLogin(body.personaId);
@@ -266,13 +296,18 @@ async function handle(req, res) {
 
     if (req.method === 'GET' && url.pathname === '/auth/sso') {
       if (!auth.workosConfigured()) return send(req, res, 400, { error: 'WorkOS not configured' });
-      res.writeHead(302, { location: auth.authorizationUrl() });
+      const state = auth.createOAuthState();
+      res.writeHead(302, { location: auth.authorizationUrl(state) });
       return res.end();
     }
 
     if (req.method === 'GET' && url.pathname === '/auth/callback') {
       const code = url.searchParams.get('code');
+      const state = url.searchParams.get('state');
       if (!code) return send(req, res, 400, { error: 'Missing code' });
+      if (state && !auth.validateOAuthState(state)) {
+        return send(req, res, 400, { error: 'Invalid OAuth state' });
+      }
       const user = await auth.authenticateCode(code);
       auth.setSessionCookie(res, user);
       live.setSessionLivePersona(user.userId);
@@ -310,15 +345,15 @@ async function handle(req, res) {
           const aNode = store.getNode(c.nodeA);
           const bNode = store.getNode(c.nodeB);
           return (
-            (aNode && store.canSee(user, aNode) && inSilo(aNode, silo)) ||
-            (bNode && store.canSee(user, bNode) && inSilo(bNode, silo))
+            (aNode && store.canSee(user, aNode) && inSilo(aNode, silo, user)) ||
+            (bNode && store.canSee(user, bNode) && inSilo(bNode, silo, user))
           );
         });
       const recentQueries = store.load().queries.slice(-6).reverse();
       return send(req, res, 200, {
         totals: a.totals,
         byLayer: a.byLayer,
-        hottest: a.hottest.filter((n) => store.canSee(user, n) && inSilo(n, silo)).slice(0, 5),
+        hottest: a.hottest.filter((n) => store.canSee(user, n) && inSilo(n, silo, user)).slice(0, 5),
         openConflicts,
         gaps: a.gaps.slice(0, 4),
         recentQueries,
@@ -330,8 +365,9 @@ async function handle(req, res) {
     if (req.method === 'GET' && url.pathname === '/silos') {
       return send(req, res, 200, {
         silos: store.listSilos({ user }),
-        selected: silo === '__denied__' ? userSilo(user) : silo,
-        locked: true,
+        selected: silo === access.SILO_DENIED ? userSilo(user) : silo,
+        locked: silo !== access.SILO_PRIVATE,
+        scopes: ['private', 'team'],
       });
     }
 
@@ -350,7 +386,12 @@ async function handle(req, res) {
       const body = await readBody(req);
       const query = String(body.query || '').trim();
       if (!query) return send(req, res, 400, { error: 'Missing query' });
-      const { pack, source, mcpError } = await recallUnified({ query, user, topK: body.topK || 12 });
+      const { pack, source, mcpError } = await recallUnified({
+        query,
+        user,
+        topK: body.topK || 12,
+        silo: silo === access.SILO_DENIED ? userSilo(user) : silo,
+      });
       store.recordQuery(query, (pack.capabilities?.length || 0) + (pack.claims?.length || 0), user.userId);
       return send(req, res, 200, { pack, source, mcpError, user: auth.publicUser(user) });
     }
@@ -359,19 +400,60 @@ async function handle(req, res) {
       const body = await readBody(req);
       const text = String(body.text || '').trim();
       if (!text) return send(req, res, 400, { error: 'Missing text' });
-      const team = silo === '__denied__' ? userSilo(user) : silo;
+      const write = access.resolveWriteTarget(silo, user);
       const result = await ingestDocument({
         text,
         label: body.label,
         sourceUri: body.sourceUri,
         user,
-        team,
+        team: write.team,
+        scope: write.scope,
+        ownerId: write.ownerId,
       });
       if (!result.ok) {
         const code = /empty|missing|extract/i.test(result.error || '') ? 400 : 502;
         return send(req, res, code, result);
       }
-      return send(req, res, 200, { ...result, user: auth.publicUser(user), team });
+      return send(req, res, 200, {
+        ...result,
+        user: auth.publicUser(user),
+        team: write.team,
+        scope: write.scope,
+      });
+    }
+
+    if (req.method === 'POST' && url.pathname === '/ingest/file') {
+      let multipart;
+      try {
+        multipart = await parseMultipart(req, { limit: INGEST_FILE_LIMIT });
+      } catch (err) {
+        const code = /too large/i.test(err.message || '') ? 413 : 400;
+        return send(req, res, code, { error: err.message || 'Invalid multipart upload' });
+      }
+
+      const file = multipart.file;
+      if (!file?.buffer?.length) return send(req, res, 400, { error: 'Missing file field' });
+
+      const write = access.resolveWriteTarget(silo, user);
+      const result = await ingestFile({
+        buffer: file.buffer,
+        filename: file.filename,
+        mimeType: file.mimeType,
+        user,
+        team: write.team,
+        scope: write.scope,
+        ownerId: write.ownerId,
+      });
+      if (!result.ok) {
+        const code = /empty|missing|extract|parse|no text/i.test(result.error || '') ? 400 : 502;
+        return send(req, res, code, result);
+      }
+      return send(req, res, 200, {
+        ...result,
+        user: auth.publicUser(user),
+        team: write.team,
+        scope: write.scope,
+      });
     }
 
     if (req.method === 'GET' && url.pathname === '/connectors') {
@@ -457,8 +539,8 @@ async function handle(req, res) {
         b: store.getNode(c.nodeB),
       }))
       .filter((c) => {
-        const aVisible = c.a && store.canSee(user, c.a) && inSilo(c.a, silo);
-        const bVisible = c.b && store.canSee(user, c.b) && inSilo(c.b, silo);
+        const aVisible = c.a && store.canSee(user, c.a) && inSilo(c.a, silo, user);
+        const bVisible = c.b && store.canSee(user, c.b) && inSilo(c.b, silo, user);
         return aVisible || bVisible;
       });
       return send(req, res, 200, { conflicts });
@@ -467,6 +549,14 @@ async function handle(req, res) {
     if (req.method === 'POST' && parts[0] === 'conflicts' && parts[1] && parts[2] === 'resolve') {
       const body = await readBody(req);
       if (!body.winnerId) return send(req, res, 400, { error: 'Missing winnerId' });
+      const conflict = store.listConflicts().find((c) => c.id === parts[1]);
+      if (!conflict) return send(req, res, 404, { error: 'Conflict not found' });
+      const aNode = store.getNode(conflict.nodeA);
+      const bNode = store.getNode(conflict.nodeB);
+      const canResolve =
+        (aNode && store.canSee(user, aNode) && inSilo(aNode, silo, user)) ||
+        (bNode && store.canSee(user, bNode) && inSilo(bNode, silo, user));
+      if (!canResolve) return send(req, res, 403, { error: 'Not allowed to resolve this conflict in current silo' });
       const result = store.resolveConflict(parts[1], {
         winnerId: body.winnerId,
         note: body.note,
@@ -499,7 +589,13 @@ async function handle(req, res) {
               : 'all roles',
       }));
       const teams = [...new Set(store.listNodes({}).map((n) => n.team))];
-      return send(req, res, 200, { personas, matrix, teams, workos: auth.workosConfigured() });
+      return send(req, res, 200, {
+        personas,
+        matrix,
+        teams,
+        silos: store.listSilos({ user }),
+        workos: auth.workosConfigured(),
+      });
     }
 
     if (req.method === 'GET' && url.pathname === '/analytics') {

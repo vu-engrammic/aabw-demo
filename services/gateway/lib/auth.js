@@ -5,13 +5,49 @@ const crypto = require('node:crypto');
 const USERS_PATH = path.join(__dirname, '..', '..', '..', 'seed', 'users.json');
 const COOKIE_NAME = 'aabw_session';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+
+const oauthStates = new Map();
 
 function sessionSecret() {
   return process.env.SESSION_SECRET || process.env.WORKOS_COOKIE_PASSWORD || 'aabw-dev-session-secret';
 }
 
+function defaultRedirectUri() {
+  return process.env.WORKOS_REDIRECT_URI || 'http://127.0.0.1:8792/api/auth/callback';
+}
+
 function workosConfigured() {
   return Boolean(process.env.WORKOS_API_KEY && process.env.WORKOS_CLIENT_ID);
+}
+
+function workosConfigStatus() {
+  const missing = [];
+  if (!process.env.WORKOS_API_KEY) missing.push('WORKOS_API_KEY');
+  if (!process.env.WORKOS_CLIENT_ID) missing.push('WORKOS_CLIENT_ID');
+  if (!process.env.WORKOS_COOKIE_PASSWORD && !process.env.SESSION_SECRET) {
+    missing.push('WORKOS_COOKIE_PASSWORD or SESSION_SECRET');
+  }
+  const redirectUri = defaultRedirectUri();
+  const redirectUrisToRegister = [
+    redirectUri,
+    'http://127.0.0.1:8792/api/auth/callback',
+    'http://127.0.0.1:5173/api/auth/callback',
+    'http://localhost:8792/api/auth/callback',
+    'http://localhost:5173/api/auth/callback',
+  ].filter((uri, i, arr) => arr.indexOf(uri) === i);
+
+  return {
+    configured: workosConfigured(),
+    missing,
+    redirectUri,
+    redirectUrisToRegister,
+    groupMapping: {
+      executive: process.env.WORKOS_GROUP_EXECUTIVE || 'org-memory-executives',
+      manager: process.env.WORKOS_GROUP_MANAGER || 'org-memory-managers',
+      director: process.env.WORKOS_GROUP_DIRECTOR || 'org-memory-directors',
+    },
+  };
 }
 
 function loadPersonas() {
@@ -80,10 +116,26 @@ function getWorkOS() {
   if (!workosConfigured()) return null;
   try {
     const { WorkOS } = require('@workos-inc/node');
-    return new WorkOS(process.env.WORKOS_API_KEY);
+    return new WorkOS(process.env.WORKOS_API_KEY, {
+      clientId: process.env.WORKOS_CLIENT_ID,
+    });
   } catch {
     return null;
   }
+}
+
+function createOAuthState() {
+  const state = crypto.randomBytes(16).toString('hex');
+  oauthStates.set(state, Date.now());
+  return state;
+}
+
+function validateOAuthState(state) {
+  if (!state) return false;
+  const created = oauthStates.get(state);
+  oauthStates.delete(state);
+  if (!created) return false;
+  return Date.now() - created < OAUTH_STATE_TTL_MS;
 }
 
 function mapWorkOSUser(profile) {
@@ -114,13 +166,14 @@ function mapWorkOSUser(profile) {
   };
 }
 
-function authorizationUrl() {
+function authorizationUrl(state) {
   const workos = getWorkOS();
   if (!workos) throw new Error('WorkOS is not configured');
   return workos.userManagement.getAuthorizationUrl({
     provider: 'authkit',
     clientId: process.env.WORKOS_CLIENT_ID,
-    redirectUri: process.env.WORKOS_REDIRECT_URI || 'http://127.0.0.1:5173/api/auth/callback',
+    redirectUri: defaultRedirectUri(),
+    state,
   });
 }
 
@@ -143,11 +196,14 @@ function devLogin(personaId) {
 module.exports = {
   COOKIE_NAME,
   workosConfigured,
+  workosConfigStatus,
   loadPersonas,
   publicUser,
   readSession,
   setSessionCookie,
   clearSessionCookie,
+  createOAuthState,
+  validateOAuthState,
   authorizationUrl,
   authenticateCode,
   devLogin,

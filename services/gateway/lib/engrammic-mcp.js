@@ -1,4 +1,5 @@
 const { callMcpTool } = require('./mcp-session');
+const access = require('./access');
 const { mcpConfig } = require('./mcp-config');
 
 const GENERIC_TITLES = new Set([
@@ -618,10 +619,16 @@ async function ingestViaMcp({
   sourceUri,
   source,
   team,
+  scope = 'team',
+  ownerId,
   user,
   harness = 'ingest',
 }) {
-  const tags = ingestTags(source, harness, [...extraTags, slugTeam(team)]);
+  const tags = ingestTags(source, harness, [
+    ...extraTags,
+    ...access.scopeTags(scope, ownerId || user?.userId),
+    slugTeam(team),
+  ]);
 
   const remember = await callMcpTool('remember', {
     content: [title, observation, sourceUri ? `Source: ${sourceUri}` : null].filter(Boolean).join('\n\n'),

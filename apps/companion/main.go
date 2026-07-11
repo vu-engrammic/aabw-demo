@@ -31,9 +31,21 @@ var (
 	windowOpened bool
 )
 
+func shouldOpenCompanionUI() bool {
+	if os.Getenv("AABW_SKIP_COMPANION") == "1" {
+		return false
+	}
+	if v, ok := os.LookupEnv("AABW_OPEN_COMPANION"); ok {
+		return v == "1"
+	}
+	return true
+}
+
 func main() {
 	if !acquireSingleton() {
-		requestFocus()
+		if shouldOpenCompanionUI() {
+			requestFocus()
+		}
 		return
 	}
 	defer releaseSingleton()
@@ -44,7 +56,7 @@ func main() {
 		_, _ = w.Write([]byte(`{"ok":true,"service":"engrammic-companion"}`))
 	})
 	mux.HandleFunc("/focus", func(w http.ResponseWriter, _ *http.Request) {
-		openWindowOnce(appURL)
+		forceOpenWindow(appURL)
 		w.Header().Set("content-type", "application/json")
 		_, _ = w.Write([]byte(`{"ok":true}`))
 	})
@@ -57,7 +69,9 @@ func main() {
 	}
 	mux.Handle("/", http.FileServer(http.FS(sub)))
 
-	go openWindowOnce(appURL)
+	if shouldOpenCompanionUI() {
+		go openWindowOnce(appURL)
+	}
 
 	addr := "127.0.0.1:" + port
 	log.Printf("Engrammic companion on %s", appURL)
@@ -162,6 +176,13 @@ func openWindowOnce(url string) {
 		return
 	}
 	windowOpened = true
+	go openWindow(url)
+}
+
+func forceOpenWindow(url string) {
+	windowMu.Lock()
+	windowOpened = true
+	windowMu.Unlock()
 	go openWindow(url)
 }
 

@@ -9,6 +9,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const access = require('./access');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const STORE_PATH = path.join(DATA_DIR, 'org-memory.json');
@@ -56,6 +57,8 @@ function addNode(node) {
     content: node.content || '',
     whyItWorked: node.whyItWorked || null,
     owner: node.owner || null,
+    ownerId: node.ownerId || node.owner || null,
+    scope: node.scope || 'team',
     team: node.team || 'Company',
     classification: node.classification || 'internal',
     sourceUri: node.sourceUri || null,
@@ -177,25 +180,10 @@ function syncSource(sourceId) {
   return source;
 }
 
-// ---------- ACL ----------
-
-const ROLE_RANK = { employee: 0, manager: 1, director: 2, executive: 3 };
-
-function normTeam(value) {
-  return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
-}
+// ---------- ACL (delegates to access.js) ----------
 
 function canSee(user, node) {
-  if (!user) return false;
-  const rank = ROLE_RANK[String(user.role || '').toLowerCase()] ?? 0;
-  if (rank === 3) return true;
-  const cls = String(node.classification || 'internal').toLowerCase();
-  if (cls === 'restricted') return false;
-  if (cls === 'confidential') {
-    if (rank < 1) return false;
-    return node.team === 'Company' || normTeam(node.team) === normTeam(user.department);
-  }
-  return true; // public / internal
+  return access.canSee(user, node);
 }
 
 // ---------- reads ----------
@@ -230,16 +218,19 @@ function activeNodes() {
 
 function scopedNodes({ user, silo } = {}) {
   const requested = String(silo || '').trim();
-  if (requested === '__denied__') return [];
+  if (requested === access.SILO_DENIED) return [];
   return activeNodes()
     .filter((n) => !user || canSee(user, n))
-    .filter((n) => !requested || requested === 'all' || normTeam(n.team) === normTeam(requested));
+    .filter((n) => {
+      if (!requested || requested === 'all') return true;
+      return access.inSilo(n, requested, user);
+    });
 }
 
-function recall({ query, user, topK = 12 }) {
+function recall({ query, user, topK = 12, silo } = {}) {
   const q = [...new Set(tokens(query))];
   const store = load();
-  const visible = scopedNodes({ user });
+  const visible = scopedNodes({ user, silo });
   const denied = activeNodes().filter((n) => !canSee(user, n));
 
   const ranked = visible
@@ -374,8 +365,7 @@ function analytics() {
 }
 
 function listSilos({ user } = {}) {
-  const dept = user?.department || 'Company';
-  return [{ id: dept, label: dept }];
+  return access.listSilos({ user });
 }
 
 function graph({ user, silo }) {
