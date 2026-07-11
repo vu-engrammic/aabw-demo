@@ -39,6 +39,32 @@ export function ProvenanceDrawer({ nodeId, onClose, silo }) {
   );
 }
 
+function offCorpusHint(pack) {
+  if (!pack) return null;
+  const total = (pack.capabilities || []).length + (pack.claims || []).length + (pack.beliefs || []).length;
+  if (total > 0) return null;
+  if ((pack.deniedCount || 0) > 0) {
+    return {
+      title: "Scope-limited recall",
+      detail: "Relevant memory exists but is withheld by role or silo access.",
+    };
+  }
+  return {
+    title: "Off-corpus: no relevant knowledge found",
+    detail: "No matching memory for this query — topic may be outside org knowledge.",
+  };
+}
+
+function OodBanner({ hint }) {
+  if (!hint) return null;
+  return (
+    <div className="ood-banner">
+      <strong>{hint.title}</strong>
+      <p>{hint.detail}</p>
+    </div>
+  );
+}
+
 export function RecallPanel({ compact = false, silo, live = false }) {
   const [query, setQuery] = React.useState("");
   const [pack, setPack] = React.useState(null);
@@ -159,6 +185,7 @@ export function RecallPanel({ compact = false, silo, live = false }) {
       </form>
       {pack && (
         <div className="pack">
+          <OodBanner hint={offCorpusHint(pack)} />
           <div className="pack-head">
             <span className="muted">{pack.capabilities.length} capabilities</span>
             <button type="button" className="ghost" onClick={() => navigator.clipboard.writeText(packToMarkdown(pack))}>
@@ -184,21 +211,81 @@ export function RecallPanel({ compact = false, silo, live = false }) {
   );
 }
 
+export function CaptureForm({ silo, onClose, onCaptured }) {
+  const [title, setTitle] = React.useState("");
+  const [content, setContent] = React.useState("");
+  const [whyItWorked, setWhyItWorked] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState("");
+
+  async function submit(e) {
+    e.preventDefault();
+    const text = [title, content, whyItWorked ? `Why it worked: ${whyItWorked}` : ""].filter(Boolean).join("\n\n");
+    if (!text.trim()) return;
+    setSaving(true);
+    setError("");
+    try {
+      await api(withSilo("/ingest/document", silo), {
+        method: "POST",
+        body: JSON.stringify({ label: title, text }),
+      });
+      onCaptured?.();
+      onClose?.();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <form className="modal-card stack" onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <div className="drawer-head">
+          <h3>Capture practice</h3>
+          <button type="button" className="ghost" onClick={onClose}>Close</button>
+        </div>
+        {error && <p className="error-text">{error}</p>}
+        <label className="muted">
+          Title
+          <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What worked?" required />
+        </label>
+        <label className="muted">
+          Content
+          <textarea rows={5} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Describe the practice or capability…" required />
+        </label>
+        <label className="muted">
+          Why it worked <span className="optional">(optional)</span>
+          <textarea rows={2} value={whyItWorked} onChange={(e) => setWhyItWorked(e.target.value)} placeholder="Why this held up in practice…" />
+        </label>
+        <button className="primary" type="submit" disabled={saving}>{saving ? "Saving…" : "Capture"}</button>
+      </form>
+    </div>
+  );
+}
+
 export function Inbox({ silo }) {
   const [data, setData] = React.useState(null);
-  React.useEffect(() => {
+  const [capturing, setCapturing] = React.useState(false);
+
+  function load() {
     api(withSilo("/inbox", silo)).then(setData).catch(() => setData({ queue: [], totals: {} }));
-  }, [silo]);
+  }
+
+  React.useEffect(load, [silo]);
   if (!data) return <p className="muted">Loading...</p>;
   const urgent = data.queue.filter((q) => q.priority >= 70);
   const review = data.queue.filter((q) => q.priority >= 40 && q.priority < 70);
   const backlog = data.queue.filter((q) => q.priority < 40);
   return (
     <section className="stack">
-      <div className="stat-grid">
-        <div className="stat"><span>Open</span><strong>{data.totals.open || 0}</strong></div>
-        <div className="stat"><span>Conflicts</span><strong>{data.totals.conflicts || 0}</strong></div>
-        <div className="stat"><span>Verification</span><strong>{data.totals.verification || 0}</strong></div>
+      <div className="row split">
+        <div className="stat-grid" style={{ marginBottom: 0, flex: 1 }}>
+          <div className="stat"><span>Open</span><strong>{data.totals.open || 0}</strong></div>
+          <div className="stat"><span>Conflicts</span><strong>{data.totals.conflicts || 0}</strong></div>
+          <div className="stat"><span>Verification</span><strong>{data.totals.verification || 0}</strong></div>
+        </div>
+        <button type="button" className="primary" onClick={() => setCapturing(true)}>+ Capture</button>
       </div>
       <div className="kanban">
         {[["Urgent", urgent], ["Needs review", review], ["Backlog", backlog]].map(([label, items]) => (
@@ -214,6 +301,7 @@ export function Inbox({ silo }) {
           </section>
         ))}
       </div>
+      {capturing && <CaptureForm silo={silo} onClose={() => setCapturing(false)} onCaptured={load} />}
     </section>
   );
 }
@@ -285,15 +373,63 @@ export function GraphPage({ silo }) {
 
 export function Conflicts({ silo }) {
   const [conflicts, setConflicts] = React.useState([]);
-  React.useEffect(() => {
+  const [busyId, setBusyId] = React.useState("");
+  const [error, setError] = React.useState("");
+
+  function load() {
     api(withSilo("/conflicts", silo)).then((d) => setConflicts(d.conflicts || [])).catch(() => setConflicts([]));
-  }, [silo]);
+  }
+
+  React.useEffect(load, [silo]);
+
+  async function resolve(conflictId, winnerId) {
+    setBusyId(conflictId);
+    setError("");
+    try {
+      await api(withSilo(`/conflicts/${conflictId}/resolve`, silo), {
+        method: "POST",
+        body: JSON.stringify({ winnerId }),
+      });
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusyId("");
+    }
+  }
+
   return (
     <section className="stack">
+      {error && <p className="error-text">{error}</p>}
+      {conflicts.length === 0 && <p className="muted">No conflicts.</p>}
       {conflicts.map((c) => (
         <article key={c.id} className="conflict-card">
           <h3>{c.topic}</h3>
           <p>{c.summary}</p>
+          {c.status !== "open" ? (
+            <p className="muted">
+              Resolved — adopted "{(c.winnerId === c.a?.id ? c.a?.title : c.b?.title) || c.winnerId}"
+            </p>
+          ) : (
+            <div className="vs">
+              {[["A", c.a], ["B", c.b]].map(([label, node]) =>
+                node ? (
+                  <div key={label} className={c.preferred === node.id ? "claim preferred" : "claim"}>
+                    <strong>{node.title}</strong>
+                    <p className="muted">{(node.content || "").slice(0, 220)}</p>
+                    <button
+                      type="button"
+                      className="primary"
+                      disabled={busyId === c.id}
+                      onClick={() => resolve(c.id, node.id)}
+                    >
+                      Adopt {label}
+                    </button>
+                  </div>
+                ) : null
+              )}
+            </div>
+          )}
         </article>
       ))}
     </section>
@@ -393,5 +529,50 @@ export function Analytics({ silo, onNavigate }) {
 }
 
 export function Install() {
-  return <article className="card"><h3>Install MCP</h3><p>Connect Engrammic MCP in Cursor, Claude Code, or Codex.</p></article>;
+  const [status, setStatus] = React.useState(null);
+  const [copied, setCopied] = React.useState(false);
+
+  function load() {
+    api("/mcp/status").then(setStatus).catch(() => setStatus(null));
+  }
+
+  React.useEffect(load, []);
+
+  function copyConfig() {
+    const snippet = JSON.stringify(
+      { mcpServers: { engrammic: { url: status?.url || "https://beta.engrammic.ai/mcp/" } } },
+      null,
+      2
+    );
+    navigator.clipboard.writeText(snippet);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <article className="card">
+      <h3>Install MCP</h3>
+      <p>Connect Engrammic MCP in Cursor, Claude Code, or Codex.</p>
+      {!status && <p className="muted">Checking MCP status…</p>}
+      {status && (
+        <>
+          <p>
+            <span className={status.authenticated ? "badge src-synced" : "badge src-not_connected"}>
+              {status.authenticated ? "Authenticated" : "Not authenticated"}
+            </span>
+            {status.tokenSource && <span className="muted"> via {status.tokenSource}</span>}
+          </p>
+          {status.probe?.ok && <p className="muted">{status.probe.nodes || 0} nodes reachable via MCP.</p>}
+          {status.probe && !status.probe.ok && <p className="muted">Probe failed: {status.probe.error}</p>}
+          <div className="row">
+            <a className="primary link-btn" href={status.loginUrl} target="_blank" rel="noreferrer">
+              {status.authenticated ? "Re-authenticate" : "Connect MCP"}
+            </a>
+            <button type="button" className="ghost" onClick={copyConfig}>{copied ? "Copied!" : "Copy config"}</button>
+            <button type="button" className="ghost" onClick={load}>Refresh</button>
+          </div>
+        </>
+      )}
+    </article>
+  );
 }

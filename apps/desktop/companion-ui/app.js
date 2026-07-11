@@ -75,6 +75,7 @@ const state = {
   selectedLiveId: null,
   dismissedSuggestions: new Set(),
   harnessSessionId: null,
+  analyticsData: null,
 };
 
 const NAV_ITEMS = [
@@ -261,6 +262,7 @@ function refreshSiloViews() {
   if (state.page === "ingest") loadIngestPage();
   if (state.page === "integrations") loadIntegrationsPage();
   if (state.page === "live") renderLiveStream();
+  loadAnalyticsWidget();
 }
 
 function applySiloChange(scope, siloId) {
@@ -656,6 +658,11 @@ function renderShell() {
   }
   sidebar.appendChild(nav);
 
+  const analyticsWidget = el("div", "sidebar-analytics");
+  analyticsWidget.id = "sidebar-analytics";
+  analyticsWidget.innerHTML = '<p class="sidebar-analytics-label">Analytics</p><p class="muted sidebar-analytics-empty">Loading…</p>';
+  sidebar.appendChild(analyticsWidget);
+
   const foot = el("div", "sidebar-foot");
   foot.innerHTML = `<div class="sidebar-user"><strong>${state.user.fullName}</strong><span class="muted">${state.user.role} · ${state.user.department}</span></div>`;
   const out = el("button", "ghost", "Sign out");
@@ -708,6 +715,8 @@ function renderShell() {
   if (state.provenanceNodeId) {
     setTimeout(() => loadProvenance(state.provenanceNodeId), 0);
   }
+  if (state.analyticsData) renderAnalyticsWidget(document.getElementById("sidebar-analytics"), state.analyticsData);
+  else loadAnalyticsWidget();
 }
 
 function bindShellResize(appEl) {
@@ -781,6 +790,7 @@ function showIngestResult(data, statusEl, resultEl, prefix = "ingest") {
   });
   state.graphLayoutStableKey = null;
   state.graphLayoutCache = null;
+  loadAnalyticsWidget();
 }
 
 async function uploadIngestFile(file, label) {
@@ -913,6 +923,25 @@ function renderIngestPage() {
   pastePanel.appendChild(form);
   wrap.appendChild(pastePanel);
 
+  const capturePanel = el("details", "capture-panel panel");
+  capturePanel.innerHTML = "<summary><h3>Capture a practice</h3></summary>";
+  const captureForm = el("form", "capture-form");
+  captureForm.id = "capture-form";
+  captureForm.innerHTML = `
+    <label class="muted">Title<input type="text" name="title" required maxlength="140" placeholder="Postgres connection pool tuning" /></label>
+    <label class="muted">What happened<textarea name="content" required rows="5" placeholder="Describe the practice, decision, or approach…"></textarea></label>
+    <label class="muted">Why it worked <span class="optional">(optional)</span><textarea name="whyItWorked" rows="3" placeholder="What made this effective — evidence, outcome, tradeoffs…"></textarea></label>
+    <button type="submit" class="chip active">Capture</button>
+  `;
+  capturePanel.appendChild(captureForm);
+  const captureStatus = el("p", "capture-status muted");
+  captureStatus.id = "capture-status";
+  capturePanel.appendChild(captureStatus);
+  const captureResult = el("div", "capture-result hidden");
+  captureResult.id = "capture-result";
+  capturePanel.appendChild(captureResult);
+  wrap.appendChild(capturePanel);
+
   const statusLine = el("p", "ingest-status muted");
   statusLine.id = "ingest-status";
   wrap.appendChild(statusLine);
@@ -932,6 +961,7 @@ function renderIngestPage() {
     loadIngestConnectors();
     bindIngestForm();
     bindIngestFileUpload();
+    bindCaptureForm();
   }, 0);
   return wrap;
 }
@@ -1187,6 +1217,36 @@ function bindIngestForm() {
   });
 }
 
+function bindCaptureForm() {
+  const form = document.getElementById("capture-form");
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = "1";
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const status = document.getElementById("capture-status");
+    const resultEl = document.getElementById("capture-result");
+    const btn = form.querySelector('button[type="submit"]');
+    const fd = new FormData(form);
+    const title = String(fd.get("title") || "").trim();
+    const content = String(fd.get("content") || "").trim();
+    const whyItWorked = String(fd.get("whyItWorked") || "").trim();
+    const text = [title, content, whyItWorked].filter(Boolean).join("\n\n");
+    if (!text) return;
+    btn.disabled = true;
+    if (status) status.textContent = "Capturing…";
+    resultEl?.classList.add("hidden");
+    try {
+      const data = await api("/ingest/document", { method: "POST", body: JSON.stringify({ label: title, text }) });
+      showIngestResult(data, status, resultEl, "capture");
+      form.reset();
+    } catch (err) {
+      if (status) status.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
 function renderIngestFileList(files) {
   const list = document.getElementById("ingest-file-list");
   const submitBtn = document.getElementById("ingest-file-submit");
@@ -1321,6 +1381,7 @@ function loadIngestPage() {
   loadIngestConnectors();
   bindIngestForm();
   bindIngestFileUpload();
+  bindCaptureForm();
 }
 
 function renderLivePage() {
@@ -1331,6 +1392,8 @@ function renderLivePage() {
   status.id = "live-silo-status";
   status.textContent = `Live recall · ${siloLabel()} silo — mirrors your agent + Engrammic for each prompt.`;
   wrap.appendChild(status);
+
+  wrap.appendChild(renderRecallPanel());
 
   const split = el("div", "live-body-split");
   const rail = el("aside", "live-timeline");
@@ -1577,6 +1640,98 @@ function liveEventRow(ev) {
 function renderLiveStream() {
   renderLiveTimeline();
   renderLiveDetail();
+}
+
+function renderRecallPanel() {
+  const panel = el("div", "recall-panel panel");
+  panel.innerHTML = `
+    <h3>Search memory</h3>
+    <form class="recall-form" id="recall-form">
+      <input type="text" name="query" placeholder="Ask memory a question…" maxlength="240" required />
+      <button type="submit" class="chip active">Search</button>
+    </form>
+    <p class="recall-status muted" id="recall-status"></p>
+    <div class="recall-pack" id="recall-pack"></div>
+  `;
+  setTimeout(bindRecallForm, 0);
+  return panel;
+}
+
+function bindRecallForm() {
+  const form = document.getElementById("recall-form");
+  if (!form || form.dataset.bound) return;
+  form.dataset.bound = "1";
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const query = String(new FormData(form).get("query") || "").trim();
+    if (!query) return;
+    const status = document.getElementById("recall-status");
+    const resultEl = document.getElementById("recall-pack");
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    if (status) status.textContent = "Searching…";
+    if (resultEl) resultEl.innerHTML = "";
+    try {
+      const data = await api("/recall", { method: "POST", body: JSON.stringify({ query }) });
+      if (status) status.textContent = "";
+      renderRecallResult(resultEl, data, query);
+      loadAnalyticsWidget();
+    } catch (err) {
+      if (status) status.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
+function renderRecallResult(root, data, query) {
+  if (!root) return;
+  root.innerHTML = "";
+  const pack = { ...data.pack, query };
+  const items = packItems(pack);
+  const cautions = pack?.cautions || [];
+
+  renderOodBanner(root, offCorpusHint(pack, data.mcpError));
+
+  const meta = el("div", "live-meta muted");
+  const metaParts = [`${items.length} recalled`, sourceLabel(data.source || pack?.source), cautions.length ? `${cautions.length} cautions` : null].filter(
+    Boolean
+  );
+  meta.textContent = metaParts.join(" · ");
+  root.appendChild(meta);
+
+  for (const c of cautions) {
+    const line = el("div", "live-caution");
+    line.innerHTML = `<strong>${c.topic || "Caution"}</strong> ${c.summary || ""}${c.rationale ? `<em class="muted"> — ${c.rationale}</em>` : ""}`;
+    root.appendChild(line);
+  }
+
+  if (!items.length) {
+    root.appendChild(el("p", "muted", "No matching memory for this query."));
+  } else {
+    const list = el("ul", "live-items");
+    for (const item of items) {
+      const layer = item.layer || "memory";
+      const conf = formatConfidencePct(item);
+      const confBadge = conf != null ? `<span class="confidence-badge sm">${conf}%</span>` : "";
+      const why = item.whyItWorked ? `<span class="live-why muted">Why: ${item.whyItWorked.slice(0, 120)}</span>` : "";
+      const li = el("li", "live-item-recalled");
+      li.innerHTML = `<span class="layer-tag" style="--layer:${LAYER_COLOR_HEX[layer] || "#888"}">${layer}</span><div class="live-item-text">${confBadge}<strong>${item.title || item.content?.slice(0, 64) || "—"}</strong>${why}</div>`;
+      if (item.id) {
+        li.style.cursor = "pointer";
+        li.onclick = () => openWhyDrawer(item.id);
+      }
+      list.appendChild(li);
+    }
+    root.appendChild(list);
+  }
+
+  const actions = el("div", "live-actions");
+  const copyBtn = el("button", "chip", "Copy context pack");
+  copyBtn.type = "button";
+  copyBtn.onclick = () => navigator.clipboard.writeText(packToMarkdown(pack));
+  actions.appendChild(copyBtn);
+  root.appendChild(actions);
 }
 
 function nodeLabel(n) {
@@ -2510,6 +2665,65 @@ async function loadInbox() {
     if (!inbox.queue?.length) root.appendChild(el("p", "muted", "Inbox clear."));
   } catch (err) {
     root.innerHTML = `<p class="muted">${err.message}</p>`;
+  }
+}
+
+async function loadAnalyticsWidget() {
+  const root = document.getElementById("sidebar-analytics");
+  if (!root) return;
+  try {
+    const data = await api("/analytics");
+    state.analyticsData = data;
+    renderAnalyticsWidget(root, data);
+  } catch {
+    root.innerHTML = '<p class="sidebar-analytics-label">Analytics</p><p class="muted sidebar-analytics-empty">Unavailable</p>';
+  }
+}
+
+function renderAnalyticsWidget(root, data) {
+  if (!root || !data) return;
+  const hottest = (data.hottest || []).slice(0, 3);
+  const gaps = (data.gaps || []).slice(0, 3);
+  const dupCount = (data.duplication || []).length;
+
+  root.innerHTML = "";
+  root.appendChild(el("p", "sidebar-analytics-label", "Analytics"));
+
+  root.appendChild(el("p", "sidebar-analytics-sublabel muted", "Hottest"));
+  if (!hottest.length) {
+    root.appendChild(el("p", "muted sidebar-analytics-empty", "No activity yet."));
+  } else {
+    const list = el("ul", "sidebar-analytics-hot");
+    for (const n of hottest) {
+      const layer = n.layer || "knowledge";
+      const li = el("li");
+      li.innerHTML = `<span class="layer-tag" style="--layer:${LAYER_COLOR_HEX[layer] || "#888"}">${layer}</span><span class="sidebar-analytics-hot-title">${n.title || nodeLabel(n)}</span><span class="muted sidebar-analytics-hot-hits">${n.hits || 0}×</span>`;
+      if (n.id) {
+        li.style.cursor = "pointer";
+        li.onclick = () => openWhyDrawer(n.id);
+      }
+      list.appendChild(li);
+    }
+    root.appendChild(list);
+  }
+
+  root.appendChild(el("p", "sidebar-analytics-sublabel muted", `Gaps${data.gaps?.length ? ` · ${data.gaps.length}` : ""}`));
+  if (!gaps.length) {
+    root.appendChild(el("p", "muted sidebar-analytics-empty", "No unanswered queries."));
+  } else {
+    const gapList = el("ul", "sidebar-analytics-gaps");
+    for (const q of gaps) {
+      const li = el("li");
+      li.textContent = q.query || "";
+      li.title = q.query || "";
+      gapList.appendChild(li);
+    }
+    root.appendChild(gapList);
+  }
+
+  if (dupCount) {
+    const dup = el("span", "sidebar-analytics-badge warn", `${dupCount} duplicate${dupCount === 1 ? "" : "s"}`);
+    root.appendChild(dup);
   }
 }
 

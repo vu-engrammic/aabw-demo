@@ -18,6 +18,38 @@ function readStdin() {
   });
 }
 
+function truncate(text, max = 400) {
+  const s = String(text || '').trim();
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 1).trimEnd()}…`;
+}
+
+function renderSection(title, items, lineFn) {
+  if (!items || !items.length) return '';
+  const lines = items.slice(0, 5).map(lineFn).filter(Boolean);
+  if (!lines.length) return '';
+  return `**${title}**\n${lines.join('\n')}\n`;
+}
+
+// Render a recall pack (capabilities/claims/beliefs/observations/cautions) as
+// markdown suitable for injection into the agent's context via
+// `additionalContext`.
+function renderRecallPack(pack) {
+  if (!pack) return '';
+
+  const sections = [
+    renderSection('Org capabilities', pack.capabilities, (h) => `- ${h.title}: ${truncate(h.content || h.summary)}`),
+    renderSection('Known claims', pack.claims, (h) => `- ${h.title}: ${truncate(h.content || h.summary)}`),
+    renderSection('Beliefs', pack.beliefs, (h) => `- ${h.title}: ${truncate(h.content || h.summary)}`),
+    renderSection('Prior observations', pack.observations, (h) => `- ${h.title}: ${truncate(h.content || h.summary)}`),
+    renderSection('Cautions', pack.cautions, (c) => `- ${c.topic || c.summary}: ${truncate(c.summary)} (${c.rationale || 'open conflict'})`),
+  ].filter(Boolean);
+
+  if (!sections.length) return '';
+
+  return [`## Engrammic recall for: "${truncate(pack.query, 120)}"`, ...sections].join('\n');
+}
+
 function readHookPersonaId() {
   try {
     const cfgPath = path.join(os.homedir(), '.cursor', 'aabw.json');
@@ -115,9 +147,15 @@ async function runPromptBridge() {
 
     if (prompt) {
       const personaId = readHookPersonaId();
-      firePost('/live/prompt', {
+      const harness = input.hook_event_name === 'UserPromptSubmit' ? 'claude' : 'cursor';
+      // Claude Code's UserPromptSubmit hook can inject `additionalContext` back
+      // into the agent's context, so block on the recall for that harness only.
+      // Cursor's beforeSubmitPrompt hook has no such channel, so keep it on the
+      // fast fire-and-forget path to avoid adding latency for no benefit.
+      const isClaude = harness === 'claude';
+      const requestBody = {
         prompt,
-        harness: input.hook_event_name === 'UserPromptSubmit' ? 'claude' : 'cursor',
+        harness,
         workspace,
         workspaceLabel: workspaceLabel(workspace),
         personaId,
@@ -125,7 +163,17 @@ async function runPromptBridge() {
         generationId: input.generation_id || null,
         model: input.model || input.model_id || null,
         event: input.hook_event_name || 'beforeSubmitPrompt',
-      });
+      };
+
+      if (isClaude) {
+        const { data } = await postJson('/live/prompt', { ...requestBody, wait: true });
+        const additionalContext = renderRecallPack(data?.pack);
+        if (additionalContext) {
+          return { continue: true, additionalContext };
+        }
+      } else {
+        firePost('/live/prompt', requestBody);
+      }
     }
   } catch {
     // Never block the harness on hook failures.

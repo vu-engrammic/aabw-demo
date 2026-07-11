@@ -394,11 +394,12 @@ async function enrichGraphEdges(graph) {
   return { nodes: graph.nodes, edges };
 }
 
-async function recallViaMcp(query, { topK = 10 } = {}) {
+async function recallViaMcp(query, { topK = 10, fusionMode, asOf } = {}) {
   const result = await callMcpTool('recall', {
     query,
     top_k: topK,
-    fusion_mode: true,
+    fusion_mode: fusionMode === undefined ? true : fusionMode,
+    ...(asOf ? { as_of: asOf } : {}),
     depth: 0,
     min_threshold: 0,
     include_content: true,
@@ -552,7 +553,11 @@ async function traceViaMcp(nodeId) {
   };
 }
 
-async function graphViaMcp({ topK = 60, bypassCache = false } = {}) {
+async function graphViaMcp({ topK = 60, bypassCache = false, fusionMode, asOf } = {}) {
+  const temporalArgs = {
+    ...(fusionMode !== undefined ? { fusion_mode: fusionMode } : {}),
+    ...(asOf ? { as_of: asOf } : {}),
+  };
   const probes = [
     { query: 'memories observations notes context', layers: ['memory'], top_k: topK },
     { query: 'claims facts knowledge evidence', layers: ['knowledge'], top_k: topK },
@@ -563,6 +568,7 @@ async function graphViaMcp({ topK = 60, bypassCache = false } = {}) {
   const batches = await Promise.all(
     probes.map((probe) => fetchRecallRows({
       ...probe,
+      ...temporalArgs,
       bypass_cache: bypassCache,
     })),
   );
@@ -574,6 +580,7 @@ async function graphViaMcp({ topK = 60, bypassCache = false } = {}) {
     const fallback = await fetchRecallRows({
       query: 'memory knowledge wisdom organization project',
       top_k: Math.max(topK, 80),
+      ...temporalArgs,
       bypass_cache: bypassCache,
     });
     if (fallback.ok) rows = mergeRecallRows(fallback.rows);

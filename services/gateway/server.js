@@ -82,6 +82,12 @@ function requireUser(req, res) {
   return user;
 }
 
+function parseBool(value) {
+  if (value === null || value === undefined || value === '') return undefined;
+  if (typeof value === 'boolean') return value;
+  return ['1', 'true', 'yes'].includes(String(value).toLowerCase());
+}
+
 function userSilo(user) {
   return access.userSilo(user);
 }
@@ -376,9 +382,11 @@ async function handle(req, res) {
     }
 
     if (req.method === 'GET' && url.pathname === '/graph') {
-      const bypassCache = url.searchParams.get('fresh') === '1';
+      const fusionMode = parseBool(url.searchParams.get('fusion_mode'));
+      const asOf = url.searchParams.get('as_of') || null;
+      const bypassCache = url.searchParams.get('fresh') === '1' || Boolean(asOf) || fusionMode !== undefined;
       const forLive = url.searchParams.get('live') === '1';
-      const graph = await graphUnified({ user, silo, bypassCache, forLive });
+      const graph = await graphUnified({ user, silo, bypassCache, forLive, fusionMode, asOf });
       return send(req, res, 200, { ...graph, silo });
     }
 
@@ -386,11 +394,15 @@ async function handle(req, res) {
       const body = await readBody(req);
       const query = String(body.query || '').trim();
       if (!query) return send(req, res, 400, { error: 'Missing query' });
+      const fusionMode = parseBool(body.fusionMode ?? body.fusion_mode);
+      const asOf = body.asOf || body.as_of || null;
       const { pack, source, mcpError } = await recallUnified({
         query,
         user,
         topK: body.topK || 12,
         silo: silo === access.SILO_DENIED ? userSilo(user) : silo,
+        fusionMode,
+        asOf,
       });
       store.recordQuery(query, (pack.capabilities?.length || 0) + (pack.claims?.length || 0), user.userId);
       return send(req, res, 200, { pack, source, mcpError, user: auth.publicUser(user) });
@@ -557,7 +569,7 @@ async function handle(req, res) {
         (aNode && store.canSee(user, aNode) && inSilo(aNode, silo, user)) ||
         (bNode && store.canSee(user, bNode) && inSilo(bNode, silo, user));
       if (!canResolve) return send(req, res, 403, { error: 'Not allowed to resolve this conflict in current silo' });
-      const result = store.resolveConflict(parts[1], {
+      const result = await store.resolveConflict(parts[1], {
         winnerId: body.winnerId,
         note: body.note,
         resolvedBy: user.userId,
