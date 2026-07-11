@@ -1,0 +1,13 @@
+{
+  "name": "@aabw/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@workos-inc/node": "^7.14.0",
+    "dotenv": "^16.4.7"
+  }
+}

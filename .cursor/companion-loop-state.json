@@ -1,0 +1,19 @@
+{
+  "iteration": 5,
+  "maxIterations": 8,
+  "phase": 5,
+  "phaseName": "label-collision",
+  "phases": [
+    "layout-engine",
+    "responsive-shell",
+    "visual-polish",
+    "graph-performance",
+    "label-collision",
+    "all-tabs-responsive",
+    "browser-verification",
+    "production-gate"
+  ],
+  "lastVerify": "pass",
+  "updatedAt": "2026-07-10T11:30:00Z",
+  "notes": "Layout cache keyed by nodes/edges/size/focus; cleared on fresh fetch"
+}

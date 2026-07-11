@@ -1,0 +1,8 @@
+node_modules/
+apps/web/dist/
+apps/companion/aabw-companion.exe
+apps/companion/aabw-companion
+services/gateway/data/
+*.log
+.env
+.DS_Store

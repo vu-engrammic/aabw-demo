@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "goal": "Production-grade org memory companion with sticky daily-use features and EAG differentiation",
+  "maxIterations": 12,
+  "iteration": 0,
+  "currentFeatureId": null,
+  "researchSources": [
+    "Engrammic MCP recall (Kumiho 2603.17244, ByteRover 2604.01599, Hindsight 2512.12818)",
+    "ByteRover docs: context tree, 5-tier retrieval, OOD detection",
+    "Hindsight: retain/recall/reflect, observations, mental models",
+    "Kumiho: AGM revision, tag pointers, dependency edges, asset-memory unity",
+    "Obsidian MCP ecosystem: vault-memory, local-first infinite context",
+    "Anthropic memory tool: client-side /memories files",
+    "AABW gateway gap analysis"
+  ],
+  "differentiation": [
+    "Competitors store memories; Engrammic adjudicates claims (evidence, supersession, contradictions)",
+    "EAG four-layer ontology vs flat RAG / file trees",
+    "Coherence layer (write-time gating) — unoccupied in Mem0/Hindsight/Cognee per internal research",
+    "Kumiho parallel: formal belief revision; Engrammic has SAGE pipeline + companion as control plane"
+  ],
+  "competitorStickyPatterns": {
+    "byterover": ["auto-curate after session", "sub-200ms cache/BM25 before LLM", "OOD when query off-corpus", "human-readable markdown audit trail"],
+    "hindsight": ["retain/recall/reflect triad", "observations with evidence quotes", "mental models for instant answers", "bank-per-user isolation"],
+    "kumiho": ["trace why belief changed", "immutable revision history", "dependency lineage for multi-agent outputs"],
+    "obsidian_mcp": ["read/write vault beside agent", "persistent context across LLM accounts", "graph view of notes", "separate agent memory sink from user notes"],
+    "frontier_harnesses": ["auto-recall before task", "memory directory client-side", "context editing at limit"]
+  },
+  "features": [
+    {
+      "id": "F01",
+      "name": "provenance-drawer",
+      "phase": 1,
+      "priority": "P0",
+      "stickyScore": 5,
+      "differentiationScore": 5,
+      "description": "Click graph node → slide-over trace panel (DERIVED_FROM / SYNTHESIZED_FROM chain, evidence, supersession)",
+      "competitorAnalog": "Kumiho URI trace + Hindsight evidence quotes; beats ByteRover markdown grep",
+      "doneWhen": ["Click node opens drawer", "GET /nodes/:id trace rendered", "Works with live MCP graph"],
+      "verify": ["npm run smoke", "manual: graph node click shows chain"],
+      "estimateIterations": 1
+    },
+    {
+      "id": "F02",
+      "name": "conflict-resolve-companion",
+      "phase": 1,
+      "priority": "P0",
+      "stickyScore": 4,
+      "differentiationScore": 5,
+      "description": "Inbox conflict cards → resolve UI (pick winner, supersede, optional belief) wired to POST /conflicts/:id/resolve",
+      "competitorAnalog": "Core wedge vs Mem0/Zep; Hindsight observations don't ship org adjudication UI",
+      "doneWhen": ["Resolve flow in companion inbox", "Graph refreshes after resolve", "Role-gated per scopes API"],
+      "verify": ["npm run smoke"],
+      "estimateIterations": 1
+    },
+    {
+      "id": "F03",
+      "name": "recall-search-companion",
+      "phase": 1,
+      "priority": "P0",
+      "stickyScore": 5,
+      "differentiationScore": 3,
+      "description": "Manual recall tab/panel: query, layer filter, copy context pack markdown, fusion_mode toggle",
+      "competitorAnalog": "Hindsight recall + ByteRover query; Obsidian search-in-vault",
+      "doneWhen": ["POST /recall from companion", "Copy pack button", "Shows cautions + capabilities"],
+      "verify": ["npm run smoke", "npm run live-smoke"],
+      "estimateIterations": 1
+    },
+    {
+      "id": "F04",
+      "name": "live-context-expand",
+      "phase": 1,
+      "priority": "P0",
+      "stickyScore": 5,
+      "differentiationScore": 4,
+      "description": "Expand live auto-recall events: full pack, copy, re-run recall, link to graph nodes",
+      "competitorAnalog": "Cursor hook + context; Anthropic context editing companion",
+      "doneWhen": ["Each live event expandable", "Copy markdown pack", "Node IDs link to graph focus"],
+      "verify": ["npm run live-smoke"],
+      "estimateIterations": 1
+    },
+    {
+      "id": "F05",
+      "name": "ood-scope-indicator",
+      "phase": 2,
+      "priority": "P1",
+      "stickyScore": 3,
+      "differentiationScore": 4,
+      "description": "When recall/graph has low relevance or empty MCP results, show explicit off-corpus banner (ByteRover OOD pattern)",
+      "competitorAnalog": "ByteRover OOD detection",
+      "doneWhen": ["Banner on low-confidence recall", "Graph empty state distinguishes MCP vs no data"],
+      "verify": ["npm run smoke"],
+      "estimateIterations": 1
+    },
+    {
+      "id": "F06",
+      "name": "capture-practice-form",
+      "phase": 2,
+      "priority": "P1",
+      "stickyScore": 4,
+      "differentiationScore": 5,
+      "description": "Capture UI: title, content, whyItWorked → knowledge + capability via gateway (MCP learn when live)",
+      "competitorAnalog": "ByteRover curate; Hindsight retain; Obsidian write-back",
+      "doneWhen": ["Form in companion or modal", "Creates knowledge in store/MCP", "Shows in graph after refresh"],
+      "verify": ["npm run smoke"],
+      "estimateIterations": 2
+    },
+    {
+      "id": "F07",
+      "name": "mcp-conflicts-bridge",
+      "phase": 2,
+      "priority": "P1",
+      "stickyScore": 3,
+      "differentiationScore": 5,
+      "description": "Bridge Engrammic MCP conflicts/resolve_conflict tools to gateway (not local-only)",
+      "competitorAnalog": "Engrammic-native; competitors lack equivalent",
+      "doneWhen": ["GET inbox from MCP conflicts when authed", "Resolve calls resolve_conflict MCP"],
+      "verify": ["npm run mcp:status", "npm run live-smoke"],
+      "estimateIterations": 2
+    },
+    {
+      "id": "F08",
+      "name": "fusion-graph-recall",
+      "phase": 2,
+      "priority": "P1",
+      "stickyScore": 3,
+      "differentiationScore": 4,
+      "description": "Graph fetch uses fusion_mode recall + temporal filters; companion toggle for time-travel as_of",
+      "competitorAnalog": "Hindsight temporal + graph; Engrammic fusion_mode native",
+      "doneWhen": ["Gateway graph uses fusion when available", "UI date picker or preset (7d)"],
+      "verify": ["npm run companion:verify"],
+      "estimateIterations": 1
+    },
+    {
+      "id": "F09",
+      "name": "mcp-install-status",
+      "phase": 3,
+      "priority": "P2",
+      "stickyScore": 3,
+      "differentiationScore": 2,
+      "description": "Companion settings strip: MCP auth status, one-click login, copy mcp.json snippet, hook install link",
+      "competitorAnalog": "Obsidian MCP setup; ByteRover brv init",
+      "doneWhen": ["Shows /mcp/status", "Login + copy config buttons"],
+      "verify": ["npm run mcp:status"],
+      "estimateIterations": 1
+    },
+    {
+      "id": "F10",
+      "name": "analytics-heatmap-mini",
+      "phase": 3,
+      "priority": "P2",
+      "stickyScore": 2,
+      "differentiationScore": 3,
+      "description": "Compact analytics: recall heat, open gaps count, duplication warnings from GET /analytics",
+      "competitorAnalog": "ByteRover AKL maturity; internal heat model research",
+      "doneWhen": ["Widget in companion sidebar or overview tab"],
+      "verify": ["npm run smoke"],
+      "estimateIterations": 1
+    },
+    {
+      "id": "F11",
+      "name": "scopes-silo-picker",
+      "phase": 3,
+      "priority": "P2",
+      "stickyScore": 2,
+      "differentiationScore": 4,
+      "description": "Silo/department picker with ACL preview before recall (org governance)",
+      "competitorAnalog": "Hindsight bank_id; Engrammic silo model",
+      "doneWhen": ["Picker when user has multi-silo", "Denied recall shows scope reason"],
+      "verify": ["npm run smoke"],
+      "estimateIterations": 1
+    },
+    {
+      "id": "F12",
+      "name": "production-gate",
+      "phase": 3,
+      "priority": "P0",
+      "stickyScore": 5,
+      "differentiationScore": 5,
+      "description": "E2E gate: smoke + live-smoke + companion:verify + demo-script checklist",
+      "competitorAnalog": "N/A",
+      "doneWhen": ["All scripts pass", "docs/plan.md updated", "8 feature P0/P1 shipped"],
+      "verify": ["npm run smoke", "npm run live-smoke", "npm run companion:verify"],
+      "estimateIterations": 1
+    }
+  ],
+  "clarityQuestions": [
+    {
+      "id": "Q1",
+      "question": "Who is the primary user for the next 4 weeks: solo developer beside Cursor, team lead governing org memory, or compliance/reviewer?",
+      "impact": "Prioritizes F04 live context vs F02 conflict resolve vs F11 silo picker"
+    },
+    {
+      "id": "Q2",
+      "question": "Should write-back (capture, conflict resolve) hit live Engrammic MCP in v1, or is local demo store acceptable until org OAuth is production-ready?",
+      "impact": "F06/F07 scope and loop verify strategy"
+    },
+    {
+      "id": "Q3",
+      "question": "Companion-only UX, or maintain parity with apps/web for governance pages?",
+      "impact": "Whether to port web Recall/Conflicts or build fresh in companion"
+    },
+    {
+      "id": "Q4",
+      "question": "Is 'sticky' defined as daily hook usage (live auto-recall) or weekly governance (inbox/conflicts)?",
+      "impact": "P0 ordering between F01-F04"
+    },
+    {
+      "id": "Q5",
+      "question": "Do you want Kumiho-style formal revision audit (immutable chain visible in UI) as a marquee feature, or is trace drawer sufficient for hackathon?",
+      "impact": "Depth of F01 provenance vs new F13 revision timeline"
+    },
+    {
+      "id": "Q6",
+      "question": "Feature loop cadence: 20m (aggressive) vs 45m (one atomic feature per tick)?",
+      "impact": "Loop script sleep interval"
+    }
+  ]
+}

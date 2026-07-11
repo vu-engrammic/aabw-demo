@@ -1,0 +1,37 @@
+[
+  {
+    "userId": "emp_maya",
+    "fullName": "Maya Chen",
+    "email": "maya.chen@demo-corp.example",
+    "role": "employee",
+    "department": "Engineering"
+  },
+  {
+    "userId": "mgr_sarah",
+    "fullName": "Sarah Kim",
+    "email": "sarah.kim@demo-corp.example",
+    "role": "manager",
+    "department": "Finance"
+  },
+  {
+    "userId": "mgr_jonas",
+    "fullName": "Jonas Patel",
+    "email": "jonas.patel@demo-corp.example",
+    "role": "manager",
+    "department": "Human Resources"
+  },
+  {
+    "userId": "dir_elliot",
+    "fullName": "Elliot Rivera",
+    "email": "elliot.rivera@demo-corp.example",
+    "role": "director",
+    "department": "Product"
+  },
+  {
+    "userId": "exec_priya",
+    "fullName": "Priya Rao",
+    "email": "priya.rao@demo-corp.example",
+    "role": "executive",
+    "department": "Executive"
+  }
+]
