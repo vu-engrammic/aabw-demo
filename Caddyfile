@@ -1,5 +1,5 @@
 # Caddyfile
-{$DOMAIN:localhost} {
+:80 {
   handle /api/* {
     uri strip_prefix /api
     reverse_proxy gateway:8790
