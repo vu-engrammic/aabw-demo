@@ -1,0 +1,21 @@
+{
+  "name": "mytasco-infra",
+  "version": "1.0.0",
+  "description": "Pulumi GCP infrastructure for the My Tasco Knowledge Platform",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@pulumi/command": "^1.2.1",
+    "@pulumi/gcp": "^9.29.0",
+    "@pulumi/pulumi": "^3.251.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^5.9.3"
+  }
+}

@@ -1,0 +1,8 @@
+# infra/Pulumi.yaml
+name: mytasco-infra
+runtime: nodejs
+description: My Tasco Knowledge Platform infrastructure
+config:
+  gcp:project: ${GCP_PROJECT_ID}
+  gcp:region: us-central1
+  gcp:zone: us-central1-a

@@ -32,3 +32,7 @@ Thumbs.db
 services/gateway/data/
 .cursor/aabw/
 .cursor/mcp.json
+infra/bin/
+infra/Pulumi.*.yaml
+!infra/Pulumi.yaml
+.claude/worktrees/
