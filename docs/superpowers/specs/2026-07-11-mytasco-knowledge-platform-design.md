@@ -228,44 +228,49 @@ Graph view, Inbox, Conflicts, Analytics, Sources pages
 
 ```
 ┌─────────────────────────────────────────────┐
-│              Google Cloud Run               │
-│  ┌─────────────┐  ┌──────────────────────┐  │
-│  │   Gateway   │  │  Hindsight (Docker)  │  │
-│  │  (Node.js)  │  │  - pg0 embedded      │  │
-│  └─────────────┘  │  - Gemini API        │  │
-│         │         └──────────────────────┘  │
-│         │                    │              │
-│  ┌──────┴────────────────────┘              │
-│  │  Cloud Storage (doc uploads)             │
-│  └──────────────────────────────────────────┤
-│              Cloud CDN (React app)          │
+│       GCE VM (e2-medium)                    │
+│  ┌───────────────────────────────────────┐  │
+│  │          Docker Compose               │  │
+│  │  ┌─────────────┐ ┌─────────────────┐  │  │
+│  │  │   Gateway   │ │   Hindsight     │  │  │
+│  │  │  (Node.js)  │ │  - pg0 embedded │  │  │
+│  │  │  port 8790  │ │  - Gemini API   │  │  │
+│  │  └─────────────┘ │  port 8888/9999 │  │  │
+│  │                  └─────────────────┘  │  │
+│  └───────────────────────────────────────┘  │
+│            Persistent Disk (50GB)           │
 └─────────────────────────────────────────────┘
+                    │
+           Cloud CDN (React static assets)
 ```
 
 ### Pulumi Resources
 
-- `gcp.cloudrun.Service` × 2 (gateway, hindsight)
-- `gcp.storage.Bucket` (uploaded docs)
-- `gcp.artifactregistry.Repository` (Docker images)
+- `gcp.compute.Instance` — e2-medium VM with Docker
+- `gcp.compute.Disk` — 50GB persistent disk for Hindsight data
+- `gcp.storage.Bucket` — React static assets
+- `gcp.compute.Firewall` — allow 80/443 ingress
 
 ### CI/CD (GitHub Actions)
 
 ```
 push to main → build Docker images
-             → push to Artifact Registry
-             → pulumi up (preview on PR, deploy on merge)
+             → push to Artifact Registry  
+             → pulumi up (infra)
+             → SSH to VM, docker compose pull && up -d
 ```
 
 ### Dockerfiles
 
 - `services/gateway/Dockerfile` — Node.js app
-- `docker-compose.yml` — local dev with Hindsight
+- `docker-compose.prod.yml` — production with Hindsight + Gateway + Caddy
 
-### Secrets (Pulumi config)
+### Secrets (Pulumi config + GitHub secrets)
 
 - `GEMINI_API_KEY`
-- `SESSION_SECRET`
-- `HINDSIGHT_URL` (internal Cloud Run URL)
+- `SESSION_SECRET`  
+- `GCP_SA_KEY` — service account for Pulumi
+- `VM_SSH_KEY` — for deploy script
 
 ---
 
