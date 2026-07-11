@@ -449,26 +449,32 @@ async function handle(req, res) {
       const file = multipart.file;
       if (!file?.buffer?.length) return send(req, res, 400, { error: 'Missing file field' });
 
-      const write = access.resolveWriteTarget(silo, user);
-      const result = await ingestFile({
-        buffer: file.buffer,
-        filename: file.filename,
-        mimeType: file.mimeType,
+      const classification = multipart.fields?.classification || 'internal';
+      const team = multipart.fields?.team || user.department;
+
+      const metadata = buildIngestMetadata({
         user,
-        team: write.team,
-        scope: write.scope,
-        ownerId: write.ownerId,
+        classification,
+        team,
+        filename: file.filename,
       });
-      if (!result.ok) {
-        const code = /empty|missing|extract|parse|no text/i.test(result.error || '') ? 400 : 502;
-        return send(req, res, code, result);
+
+      try {
+        const result = await retainFile({
+          buffer: file.buffer,
+          filename: file.filename,
+          mimeType: file.mimeType,
+          metadata,
+        });
+        return send(req, res, 200, {
+          ok: true,
+          documentId: result.id || result.document_id,
+          metadata,
+          user: auth.publicUser(user),
+        });
+      } catch (err) {
+        return send(req, res, 502, { error: 'Hindsight ingest failed: ' + err.message });
       }
-      return send(req, res, 200, {
-        ...result,
-        user: auth.publicUser(user),
-        team: write.team,
-        scope: write.scope,
-      });
     }
 
     if (req.method === 'GET' && url.pathname === '/connectors') {
