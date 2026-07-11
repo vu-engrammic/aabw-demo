@@ -2,32 +2,12 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import "./style.css";
 import { api } from "./api";
-import {
-  RecallPanel,
-  Inbox,
-  GraphPage,
-  Conflicts,
-  Sources,
-  Scopes,
-  Analytics,
-  Install,
-} from "./components.jsx";
-
-const COMPANION_URL = "http://127.0.0.1:8792/";
-
-if (new URLSearchParams(window.location.search).get("popup") === "1") {
-  window.location.replace(COMPANION_URL);
-}
+import { Chat } from "./Chat.jsx";
+import { Upload } from "./Upload.jsx";
 
 const NAV = [
-  { id: "inbox", label: "Inbox", component: Inbox },
-  { id: "recall", label: "Recall", component: (props) => <RecallPanel {...props} /> },
-  { id: "graph", label: "Graph", component: GraphPage },
-  { id: "conflicts", label: "Conflicts", component: Conflicts },
-  { id: "sources", label: "Sources", component: Sources },
-  { id: "scopes", label: "Scopes", component: Scopes },
-  { id: "analytics", label: "Analytics", component: Analytics },
-  { id: "install", label: "Install MCP", component: Install },
+  { id: "chat", label: "Ask", component: Chat },
+  { id: "upload", label: "Upload", component: Upload },
 ];
 
 function Login({ personas, workos, onSignedIn }) {
@@ -50,11 +30,10 @@ function Login({ personas, workos, onSignedIn }) {
   return (
     <main className="login-shell">
       <div className="login-card">
-        <p className="eyebrow">Engrammic</p>
-        <h1>Org Memory</h1>
+        <p className="eyebrow">Tasco</p>
+        <h1>My Tasco</h1>
         <p className="lede">
-          Admin console for governance, analytics, and MCP install. Day-to-day recall lives in the{" "}
-          <a href={COMPANION_URL}>companion app</a>.
+          Enterprise knowledge assistant with AI-powered search and role-based access control.
         </p>
         {error && <p className="error-text">{error}</p>}
         {workos && (
@@ -75,26 +54,15 @@ function Login({ personas, workos, onSignedIn }) {
 }
 
 function Shell({ user, onLogout }) {
-  const [page, setPage] = React.useState("inbox");
-  const [silos, setSilos] = React.useState([]);
-  const [silo, setSilo] = React.useState(user.department || "all");
+  const [page, setPage] = React.useState("chat");
   const Active = NAV.find((n) => n.id === page).component;
-
-  React.useEffect(() => {
-    api(`/silos?silo=${encodeURIComponent(silo)}`)
-      .then((data) => {
-        setSilos(data.silos || []);
-        if (data.selected) setSilo(data.selected);
-      })
-      .catch(() => {});
-  }, [silo]);
 
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <p className="eyebrow">Engrammic</p>
-          <h1>Org Memory</h1>
+          <h1>My Tasco</h1>
+          <p className="eyebrow">Knowledge Assistant</p>
         </div>
         <nav>
           {NAV.map((n) => (
@@ -109,15 +77,6 @@ function Shell({ user, onLogout }) {
           ))}
         </nav>
         <div className="sidebar-foot">
-          <label className="silo-picker">
-            <span className="muted">Silo</span>
-            <select value={silo} onChange={(e) => setSilo(e.target.value)}>
-              {silos.map((s) => (
-                <option key={s.id} value={s.id}>{s.label}</option>
-              ))}
-            </select>
-          </label>
-          <a className="ghost link-btn" href={COMPANION_URL} target="_blank" rel="noreferrer">Open companion ↗</a>
           <div className="user-line">
             <span>{user.fullName}</span>
             <span className="muted">{user.role} · {user.department}</span>
@@ -126,10 +85,7 @@ function Shell({ user, onLogout }) {
         </div>
       </aside>
       <main className="content">
-        <header className="content-head">
-          <h2>{NAV.find((n) => n.id === page).label}</h2>
-        </header>
-        <Active silo={silo} onNavigate={setPage} />
+        <Active user={user} />
       </main>
     </div>
   );
