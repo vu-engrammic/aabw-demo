@@ -50,14 +50,15 @@ async function askQuestion({ query, user, topK = 8 }) {
     tags: filter.tags,
     topK,
   });
-  const memories = filteredResult.facts || filteredResult.memories || [];
+  // ponytail: Hindsight returns 'results' not 'facts'
+  const memories = filteredResult.results || filteredResult.facts || filteredResult.memories || [];
 
   // Count denied (unfiltered minus filtered)
   let deniedCount = 0;
   if (!filter.canSeeAll && memories.length > 0) {
     try {
       const unfilteredResult = await recallMemories({ query, topK });
-      const unfilteredCount = (unfilteredResult.facts || unfilteredResult.memories || []).length;
+      const unfilteredCount = (unfilteredResult.results || unfilteredResult.facts || unfilteredResult.memories || []).length;
       deniedCount = Math.max(0, unfilteredCount - memories.length);
     } catch {
       // Ignore count errors
