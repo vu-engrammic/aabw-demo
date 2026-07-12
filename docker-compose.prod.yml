@@ -41,6 +41,8 @@ services:
       - HINDSIGHT_URL=http://hindsight:8888
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - SESSION_SECRET=${SESSION_SECRET}
+    volumes:
+      - ./seed:/seed:ro
     depends_on:
       - hindsight
     restart: unless-stopped
