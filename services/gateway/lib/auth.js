@@ -64,6 +64,7 @@ function publicUser(user) {
     email: user.email,
     role: user.role,
     department: user.department,
+    departmentCode: user.departmentCode || null,
   };
 }
 

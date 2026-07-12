@@ -1,13 +1,13 @@
 // services/gateway/lib/chat.js
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { recallMemories } = require('./hindsight');
-const { buildMetadataFilter } = require('./rbac-filter');
+const { buildMetadataFilter, filterMemoriesForUser } = require('./rbac-filter');
 const { loadEnv } = require('./env');
 
 loadEnv();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.0-flash' });
 
 const SYSTEM_PROMPT = `You are My Tasco, the knowledge assistant for Tasco employees.
 Your job is to help employees find company policies, procedures, and institutional knowledge.
@@ -17,14 +17,12 @@ Rules:
 - Cite sources inline as [Source: filename] when referencing specific documents.
 - Be concise, professional, and helpful.
 - If multiple sources agree, synthesize them. If they conflict, note the discrepancy.
-- Only say you don't have information if the sources truly don't contain anything relevant to the question.`;
+- Only say you don't have information if the sources truly don't contain anything relevant to the question.
+- Never invent restricted or confidential details that are not in the provided sources.`;
 
 function getSourceFile(m) {
-  // Hindsight returns document_id (might be file_UUID or original filename)
-  // Prefer metadata fields if they have a cleaner name
   const docId = m.document_id || '';
   const metaFile = m.metadata?.source_file || m.metadata?.filename;
-  // If document_id looks like a UUID (file_xxx), prefer metadata or extract meaningful part
   if (docId.startsWith('file_') && metaFile) return metaFile;
   return metaFile || docId || null;
 }
@@ -42,7 +40,6 @@ function buildSourcesContext(memories) {
 }
 
 function extractSources(memories) {
-  // Dedupe by document_id, keep highest scoring
   const seen = new Map();
   for (const m of memories) {
     const file = getSourceFile(m);
@@ -67,22 +64,32 @@ function computeConfidence(memories) {
   return 'low';
 }
 
+function asMemoryList(result) {
+  return result?.results || result?.facts || result?.memories || [];
+}
+
 async function askQuestion({ query, user, topK = 8 }) {
   const filter = buildMetadataFilter(user);
 
   const filteredResult = await recallMemories({
     query,
-    tags: filter.tags,
+    tags: filter.canSeeAll ? [] : filter.tags,
+    tagsMatch: 'any_strict',
     topK,
   });
-  const memories = filteredResult.results || filteredResult.facts || filteredResult.memories || [];
+  let memories = asMemoryList(filteredResult);
 
-  let deniedCount = 0;
-  if (!filter.canSeeAll && memories.length > 0) {
+  // Defense in depth — never send unauthorized chunks to Gemini
+  const beforePost = memories.length;
+  memories = filterMemoriesForUser(memories, user);
+  const postDenied = Math.max(0, beforePost - memories.length);
+
+  let deniedCount = postDenied;
+  if (!filter.canSeeAll) {
     try {
-      const unfilteredResult = await recallMemories({ query, topK });
-      const unfilteredCount = (unfilteredResult.results || unfilteredResult.facts || unfilteredResult.memories || []).length;
-      deniedCount = Math.max(0, unfilteredCount - memories.length);
+      const unfilteredResult = await recallMemories({ query, tags: [], topK });
+      const unfilteredCount = asMemoryList(unfilteredResult).length;
+      deniedCount = Math.max(deniedCount, Math.max(0, unfilteredCount - memories.length));
     } catch {
       // Ignore count errors
     }

@@ -60,15 +60,20 @@ function Login({ personas, workos, onSignedIn }) {
 }
 
 function Shell({ user, onLogout }) {
+  const { t } = useLocale();
+  const NAV = useNav();
   const [page, setPage] = React.useState("chat");
-  const Active = NAV.find((n) => n.id === page).component;
+  const Active = NAV.find((n) => n.id === page)?.component || Chat;
 
   return (
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
-          <h1>My Tasco</h1>
-          <p className="eyebrow">Knowledge Assistant</p>
+          <div className="row split">
+            <h1>My Tasco</h1>
+            <LanguageToggle />
+          </div>
+          <p className="eyebrow">{t("shell.brandEyebrow")}</p>
         </div>
         <nav>
           {NAV.map((n) => (
@@ -87,7 +92,7 @@ function Shell({ user, onLogout }) {
             <span>{user.fullName}</span>
             <span className="muted">{user.role} · {user.department}</span>
           </div>
-          <button type="button" className="ghost" onClick={onLogout}>Sign out</button>
+          <button type="button" className="ghost" onClick={onLogout}>{t("shell.signOut")}</button>
         </div>
       </aside>
       <main className="content">
@@ -98,6 +103,7 @@ function Shell({ user, onLogout }) {
 }
 
 function Root() {
+  const { t } = useLocale();
   const [booting, setBooting] = React.useState(true);
   const [user, setUser] = React.useState(null);
   const [personas, setPersonas] = React.useState([]);
@@ -119,9 +125,13 @@ function Root() {
     setUser(null);
   }
 
-  if (booting) return <main className="login-shell"><p className="muted">Loading…</p></main>;
+  if (booting) return <main className="login-shell"><p className="muted">{t("login.loading")}</p></main>;
   if (!user) return <Login personas={personas} workos={workos} onSignedIn={setUser} />;
   return <Shell user={user} onLogout={logout} />;
 }
 
-createRoot(document.getElementById("root")).render(<Root />);
+createRoot(document.getElementById("root")).render(
+  <LocaleProvider>
+    <Root />
+  </LocaleProvider>
+);

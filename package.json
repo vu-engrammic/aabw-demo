@@ -8,7 +8,8 @@
     "dev": "node scripts/dev-foreground.js",
     "build": "node scripts/build-installer.js",
     "gateway": "node services/gateway/server.js",
-    "smoke": "node scripts/smoke.js"
+    "smoke": "node scripts/smoke.js",
+    "test:rbac": "node scripts/test-rbac-filter.js"
   },
   "workspaces": [
     "services/gateway"

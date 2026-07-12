@@ -18,16 +18,24 @@ async function hindsightFetch(path, options = {}) {
     const text = await res.text();
     throw new Error(`Hindsight ${path}: ${res.status} ${text}`);
   }
-  return res.json();
+  if (res.status === 204) return null;
+  const text = await res.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
 }
 
 async function retainDocument({ text, metadata = {}, mode = 'verbatim' }) {
-  // ponytail: Hindsight v1 API uses /memories for text retention
+  const tags = metadata.tags || [];
   return hindsightFetch(`/v1/default/banks/${BANK_ID}/memories`, {
     method: 'POST',
     body: JSON.stringify({
       content: text,
       metadata,
+      tags,
       type: 'world',
     }),
   });
@@ -39,6 +47,7 @@ async function retainFile({ buffer, filename, mimeType, metadata = {} }) {
   formData.append('request', JSON.stringify({
     document_id: filename,
     tags: metadata.tags || [],
+    metadata,
   }));
 
   const res = await fetch(`${HINDSIGHT_URL}/v1/default/banks/${BANK_ID}/files/retain`, {
@@ -52,19 +61,31 @@ async function retainFile({ buffer, filename, mimeType, metadata = {} }) {
   return res.json();
 }
 
-async function recallMemories({ query, tags = [], tagsMatch = 'any', topK = 10 }) {
-  // ponytail: low budget + fewer tokens = faster recall
+async function recallMemories({ query, tags = [], tagsMatch = 'any_strict', topK = 10 }) {
+  // any_strict: OR match on tags, EXCLUDE untagged (required for RBAC)
   return hindsightFetch(`/v1/default/banks/${BANK_ID}/memories/recall`, {
     method: 'POST',
     body: JSON.stringify({
       query,
       tags: tags.length ? tags : undefined,
-      tags_match: tagsMatch,
+      tags_match: tags.length ? tagsMatch : undefined,
       max_tokens: 2000,
       budget: 'low',
       types: ['world', 'observation'],
     }),
   });
+}
+
+async function deleteDocument(documentId) {
+  const id = encodeURIComponent(String(documentId || '').trim());
+  if (!id) throw new Error('documentId required');
+  return hindsightFetch(`/v1/default/banks/${BANK_ID}/documents/${id}`, {
+    method: 'DELETE',
+  });
+}
+
+async function listDocuments() {
+  return hindsightFetch(`/v1/default/banks/${BANK_ID}/documents`);
 }
 
 async function healthCheck() {
@@ -77,11 +98,10 @@ async function healthCheck() {
 }
 
 async function ensureBank() {
-  // Create bank if it doesn't exist
   try {
     await hindsightFetch(`/v1/default/banks/${BANK_ID}`, { method: 'PUT', body: JSON.stringify({}) });
   } catch {
-    // Bank might already exist, that's fine
+    // Bank might already exist
   }
 }
 
@@ -89,6 +109,8 @@ module.exports = {
   retainDocument,
   retainFile,
   recallMemories,
+  deleteDocument,
+  listDocuments,
   healthCheck,
   ensureBank,
   HINDSIGHT_URL,

@@ -1,27 +1,54 @@
 // apps/web/src/Upload.jsx
 import React from "react";
+import { useLocale } from "./i18n.jsx";
 
-const CLASSIFICATIONS = [
-  { value: "public", label: "Public - All employees" },
-  { value: "internal", label: "Internal - All employees" },
-  { value: "confidential", label: "Confidential - Manager+ in department" },
-  { value: "restricted", label: "Restricted - Executive only" },
+const DEPARTMENTS = [
+  { code: "COMP", slug: "company", en: "Company", vi: "Công ty" },
+  { code: "HR", slug: "human-resources", en: "Human Resources", vi: "Nhân sự" },
+  { code: "FIN", slug: "finance", en: "Finance", vi: "Tài chính" },
+  { code: "PROD", slug: "product", en: "Product", vi: "Sản phẩm" },
+  { code: "ENG", slug: "engineering", en: "Engineering", vi: "Kỹ thuật" },
+  { code: "OPS", slug: "operations", en: "Operations", vi: "Vận hành" },
+  { code: "LEGAL", slug: "legal", en: "Legal & Compliance", vi: "Pháp chế & Tuân thủ" },
+  { code: "EXEC", slug: "executive", en: "Executive Office", vi: "Ban Điều hành" },
 ];
 
-const UPLOAD_STEPS = [
-  "Uploading file...",
-  "Processing document...",
-  "Extracting knowledge...",
-  "Almost done...",
-];
+function deptForUser(user) {
+  const name = String(user?.department || "").toLowerCase();
+  return (
+    DEPARTMENTS.find(
+      (d) =>
+        d.en.toLowerCase() === name ||
+        d.slug === name ||
+        d.code.toLowerCase() === String(user?.departmentCode || "").toLowerCase()
+    ) || DEPARTMENTS.find((d) => d.slug === "engineering")
+  );
+}
 
 export function Upload({ user }) {
+  const { t, locale } = useLocale();
+  const defaultDept = deptForUser(user);
   const [file, setFile] = React.useState(null);
   const [classification, setClassification] = React.useState("internal");
+  const [team, setTeam] = React.useState(defaultDept?.en || user.department);
   const [uploading, setUploading] = React.useState(false);
   const [uploadStep, setUploadStep] = React.useState(0);
   const [result, setResult] = React.useState(null);
   const [error, setError] = React.useState("");
+
+  const CLASSIFICATIONS = [
+    { value: "public", label: t("upload.classPublic") },
+    { value: "internal", label: t("upload.classInternal") },
+    { value: "confidential", label: t("upload.classConfidential") },
+    { value: "restricted", label: t("upload.classRestricted") },
+  ];
+
+  const UPLOAD_STEPS = [
+    t("upload.step1"),
+    t("upload.step2"),
+    t("upload.step3"),
+    t("upload.step4"),
+  ];
 
   React.useEffect(() => {
     if (!uploading) {
@@ -45,7 +72,7 @@ export function Upload({ user }) {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("classification", classification);
-    formData.append("team", user.department);
+    formData.append("team", team);
 
     try {
       const res = await fetch("/api/ingest/file", {
@@ -54,7 +81,7 @@ export function Upload({ user }) {
         credentials: "include",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      if (!res.ok) throw new Error(data.error || t("upload.uploadFailed"));
       setResult(data);
       setFile(null);
     } catch (err) {
@@ -72,8 +99,9 @@ export function Upload({ user }) {
 
   return (
     <div className="upload-container">
-      <h2>Upload Document</h2>
-      <p className="muted">Add documents to the knowledge base for your team.</p>
+      <h2>{t("upload.title")}</h2>
+      <p className="muted">{t("upload.subtitle")}</p>
+      <p className="muted">{t("upload.oneClassWarning")}</p>
 
       <form onSubmit={handleUpload}>
         <div
@@ -94,12 +122,12 @@ export function Upload({ user }) {
           {file ? (
             <p><strong>{file.name}</strong> ({(file.size / 1024).toFixed(1)} KB)</p>
           ) : (
-            <p>Drop a file here or click to select</p>
+            <p>{t("upload.dropZone")}</p>
           )}
         </div>
 
         <label className="field">
-          <span>Classification</span>
+          <span>{t("upload.classification")}</span>
           <select value={classification} onChange={(e) => setClassification(e.target.value)} disabled={uploading}>
             {CLASSIFICATIONS.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -108,12 +136,18 @@ export function Upload({ user }) {
         </label>
 
         <label className="field">
-          <span>Team</span>
-          <input type="text" value={user.department} disabled />
+          <span>{t("upload.team")}</span>
+          <select value={team} onChange={(e) => setTeam(e.target.value)} disabled={uploading}>
+            {DEPARTMENTS.map((d) => (
+              <option key={d.code} value={d.en}>
+                {d.code} — {locale === "vi" ? d.vi : d.en}
+              </option>
+            ))}
+          </select>
         </label>
 
         <button type="submit" className="primary" disabled={!file || uploading}>
-          {uploading ? "Processing..." : "Upload"}
+          {uploading ? t("upload.processing") : t("upload.uploadButton")}
         </button>
       </form>
 
@@ -128,8 +162,13 @@ export function Upload({ user }) {
 
       {result && (
         <div className="success-banner">
-          <strong>{result.filename || "Document"}</strong> uploaded successfully!
-          It will be available in search shortly.
+          <strong>{result.filename || t("upload.documentFallback")}</strong>{" "}
+          {t("upload.successSuffix")}
+          {result.metadata?.tags?.length ? (
+            <div className="muted" style={{ marginTop: 8 }}>
+              tags: {result.metadata.tags.join(", ")}
+            </div>
+          ) : null}
         </div>
       )}
 

@@ -49,5 +49,6 @@
   "upload.classInternal": "Internal - All employees",
   "upload.classConfidential": "Confidential - Manager+ in department",
   "upload.classRestricted": "Restricted - Executive only",
-  "upload.documentFallback": "Document"
+  "upload.documentFallback": "Document",
+  "upload.oneClassWarning": "One file = one classification. Split mixed corpora (e.g. company + executive packs) before upload, or restricted content will inherit the wrong access level."
 }

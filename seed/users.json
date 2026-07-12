@@ -4,34 +4,63 @@
     "fullName": "Maya Chen",
     "email": "maya.chen@demo-corp.example",
     "role": "employee",
-    "department": "Engineering"
+    "department": "Engineering",
+    "departmentCode": "ENG"
   },
   {
     "userId": "mgr_sarah",
     "fullName": "Sarah Kim",
     "email": "sarah.kim@demo-corp.example",
     "role": "manager",
-    "department": "Finance"
+    "department": "Finance",
+    "departmentCode": "FIN"
   },
   {
     "userId": "mgr_jonas",
     "fullName": "Jonas Patel",
     "email": "jonas.patel@demo-corp.example",
     "role": "manager",
-    "department": "Human Resources"
+    "department": "Human Resources",
+    "departmentCode": "HR"
   },
   {
     "userId": "dir_elliot",
     "fullName": "Elliot Rivera",
     "email": "elliot.rivera@demo-corp.example",
     "role": "director",
-    "department": "Product"
+    "department": "Product",
+    "departmentCode": "PROD"
+  },
+  {
+    "userId": "mgr_linh",
+    "fullName": "Linh Vo",
+    "email": "linh.vo@demo-corp.example",
+    "role": "manager",
+    "department": "Operations",
+    "departmentCode": "OPS"
+  },
+  {
+    "userId": "mgr_an",
+    "fullName": "An Nguyen",
+    "email": "an.nguyen@demo-corp.example",
+    "role": "manager",
+    "department": "Legal & Compliance",
+    "departmentCode": "LEGAL"
+  },
+  {
+    "userId": "emp_bao",
+    "fullName": "Bao Tran",
+    "email": "bao.tran@demo-corp.example",
+    "role": "employee",
+    "department": "Company",
+    "departmentCode": "COMP"
   },
   {
     "userId": "exec_priya",
     "fullName": "Priya Rao",
     "email": "priya.rao@demo-corp.example",
     "role": "executive",
-    "department": "Executive"
+    "department": "Executive Office",
+    "departmentCode": "EXEC"
   }
 ]

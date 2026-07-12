@@ -24,8 +24,13 @@ const { loginInteractive, ensureValidToken } = require('../../scripts/mcp-login'
 const { connectCursor, readSetupStatus, FIRST_ONBOARDING_PROMPT } = require('./lib/device-setup');
 const connectors = require('./lib/connectors');
 const { askQuestion } = require('./lib/chat');
-const { buildIngestMetadata } = require('./lib/rbac-filter');
-const { retainFile, healthCheck: hindsightHealth } = require('./lib/hindsight');
+const { buildIngestMetadata, DEPARTMENTS, getRoleRank } = require('./lib/rbac-filter');
+const {
+  retainFile,
+  deleteDocument,
+  ensureBank,
+  healthCheck: hindsightHealth,
+} = require('./lib/hindsight');
 
 let mcpLoginInProgress = false;
 
@@ -37,6 +42,7 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 
 seedIfEmpty();
+ensureBank().catch((err) => console.warn('ensureBank:', err.message));
 
 function corsOrigin(req) {
   const origin = String(req.headers.origin || '');
@@ -642,6 +648,24 @@ async function handle(req, res) {
       store.reset();
       seedIfEmpty();
       return send(req, res, 200, { ok: true, totals: store.analytics().totals });
+    }
+
+    if (req.method === 'GET' && url.pathname === '/departments') {
+      return send(req, res, 200, { departments: DEPARTMENTS });
+    }
+
+    if (req.method === 'DELETE' && url.pathname.startsWith('/documents/')) {
+      if (getRoleRank(user.role) < 3) {
+        return send(req, res, 403, { error: 'Executive role required to delete documents' });
+      }
+      const documentId = decodeURIComponent(url.pathname.slice('/documents/'.length));
+      if (!documentId) return send(req, res, 400, { error: 'Missing document id' });
+      try {
+        const result = await deleteDocument(documentId);
+        return send(req, res, 200, { ok: true, documentId, result });
+      } catch (err) {
+        return send(req, res, 502, { error: 'Hindsight delete failed: ' + err.message });
+      }
     }
 
     if (req.method === 'POST' && url.pathname === '/chat') {

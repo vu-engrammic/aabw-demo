@@ -49,5 +49,6 @@
   "upload.classInternal": "Nội bộ - Toàn bộ nhân viên",
   "upload.classConfidential": "Bảo mật - Quản lý trở lên trong phòng ban",
   "upload.classRestricted": "Hạn chế - Chỉ ban điều hành",
-  "upload.documentFallback": "Tài liệu"
+  "upload.documentFallback": "Tài liệu",
+  "upload.oneClassWarning": "Mỗi tệp chỉ có một mức phân loại. Hãy tách bộ tài liệu hỗn hợp (ví dụ tri thức công ty + ban điều hành) trước khi tải lên, nếu không nội dung hạn chế sẽ bị gắn sai quyền."
 }
