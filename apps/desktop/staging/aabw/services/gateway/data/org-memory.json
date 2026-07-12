@@ -1,0 +1,741 @@
+{
+  "nodes": [
+    {
+      "id": "mem_3a8cc199bad3",
+      "layer": "memory",
+      "type": "observation",
+      "title": "Leave Policy (Drive)",
+      "content": "Effective January 1, 2026, full-time employees receive 15 days annual leave per calendar year. Leave accrues monthly; up to five unused days carry over with manager approval.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Human Resources",
+      "classification": "internal",
+      "sourceUri": "gdrive://demo-corp/policies/leave-policy.md",
+      "sourceTier": "authoritative",
+      "tags": [
+        "hr",
+        "leave",
+        "policy"
+      ],
+      "confidence": null,
+      "heat": 6,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.137Z"
+    },
+    {
+      "id": "mem_889b26984ff7",
+      "layer": "memory",
+      "type": "observation",
+      "title": "#general — Maya on leave allowance",
+      "content": "Maya Chen: Can someone confirm the annual leave allowance for 2026? I heard during onboarding that full-time employees now get 20 days leave.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Human Resources",
+      "classification": "internal",
+      "sourceUri": "slack://demo-corp/general/2026-01-08",
+      "sourceTier": "community",
+      "tags": [
+        "hr",
+        "leave",
+        "rumor"
+      ],
+      "confidence": null,
+      "heat": 3,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.139Z"
+    },
+    {
+      "id": "mem_65fb8b4c403f",
+      "layer": "memory",
+      "type": "observation",
+      "title": "Expense Policy (Drive)",
+      "content": "Expenses over USD 250 require an itemized receipt and manager approval before reimbursement. Submit within 30 days of purchase.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Finance",
+      "classification": "internal",
+      "sourceUri": "gdrive://demo-corp/policies/expense-policy.md",
+      "sourceTier": "authoritative",
+      "tags": [
+        "finance",
+        "expense",
+        "policy"
+      ],
+      "confidence": null,
+      "heat": 4,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.139Z"
+    },
+    {
+      "id": "mem_ee8fc019c2a4",
+      "layer": "memory",
+      "type": "observation",
+      "title": "invoice-ocr pipeline README",
+      "content": "Sarah Kim's invoice OCR pipeline: preprocess (deskew + rescale to 300 DPI), extract vendor/tax-id/date/total, validate against expense policy, emit draft journal entry for review.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Finance",
+      "classification": "internal",
+      "sourceUri": "github://demo-corp/invoice-ocr/README.md",
+      "sourceTier": "validated",
+      "tags": [
+        "finance",
+        "ocr",
+        "workflow"
+      ],
+      "confidence": null,
+      "heat": 5,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.140Z"
+    },
+    {
+      "id": "mem_086ce2d34e43",
+      "layer": "memory",
+      "type": "observation",
+      "title": "#finance — Sarah on OCR accuracy",
+      "content": "Sarah Kim: the big unlock was rescaling every invoice to 300 DPI before extraction — accuracy went from ~81% to ~97%. Low-res photos from phones were the main failure mode.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Finance",
+      "classification": "internal",
+      "sourceUri": "slack://demo-corp/finance/2026-03-14",
+      "sourceTier": "community",
+      "tags": [
+        "finance",
+        "ocr",
+        "gotcha"
+      ],
+      "confidence": null,
+      "heat": 5,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.141Z"
+    },
+    {
+      "id": "mem_feeb5cc4262b",
+      "layer": "memory",
+      "type": "observation",
+      "title": "Release process (Confluence)",
+      "content": "Every production release requires QA sign-off, a documented go/no-go decision with named owner, and rollback steps recorded before deploy.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Product",
+      "classification": "internal",
+      "sourceUri": "confluence://demo-corp/eng/release-process",
+      "sourceTier": "validated",
+      "tags": [
+        "product",
+        "release",
+        "process"
+      ],
+      "confidence": null,
+      "heat": 3,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.142Z"
+    },
+    {
+      "id": "mem_3ac4dc7add80",
+      "layer": "memory",
+      "type": "observation",
+      "title": "ENG-142 postmortem (Jira)",
+      "content": "Payment webhook outage postmortem: root cause was an unbounded retry loop. Action items: add circuit breaker, alert on retry saturation, document in runbook.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Engineering",
+      "classification": "internal",
+      "sourceUri": "jira://demo-corp/ENG-142",
+      "sourceTier": "validated",
+      "tags": [
+        "engineering",
+        "incident",
+        "postmortem"
+      ],
+      "confidence": null,
+      "heat": 2,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.142Z"
+    },
+    {
+      "id": "kn_cdba069c6d8d",
+      "layer": "knowledge",
+      "type": "claim",
+      "title": "Annual leave is 15 days",
+      "content": "Full-time employees receive 15 days of annual leave per calendar year.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Human Resources",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": "authoritative",
+      "tags": [
+        "hr",
+        "leave",
+        "policy"
+      ],
+      "confidence": 0.92,
+      "heat": 4,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.143Z"
+    },
+    {
+      "id": "kn_0ff5dfa6c34b",
+      "layer": "knowledge",
+      "type": "claim",
+      "title": "Annual leave is 20 days (Slack claim)",
+      "content": "Employees get 20 days of annual leave, per onboarding hearsay in Slack.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Human Resources",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": "community",
+      "tags": [
+        "hr",
+        "leave",
+        "rumor"
+      ],
+      "confidence": 0.55,
+      "heat": 2,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.145Z"
+    },
+    {
+      "id": "kn_d9bb8c46e9c1",
+      "layer": "knowledge",
+      "type": "claim",
+      "title": "Expense claims need receipts + manager approval over $250",
+      "content": "Expenses over USD 250 require an itemized receipt and manager approval before reimbursement.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Finance",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": "authoritative",
+      "tags": [
+        "finance",
+        "expense"
+      ],
+      "confidence": 0.88,
+      "heat": 3,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.146Z"
+    },
+    {
+      "id": "kn_33af5737f7c9",
+      "layer": "knowledge",
+      "type": "claim",
+      "title": "300 DPI preprocessing is the OCR accuracy unlock",
+      "content": "Rescaling invoices to 300 DPI before extraction raises OCR accuracy from ~81% to ~97%; low-resolution phone photos are the dominant failure mode.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Finance",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": "validated",
+      "tags": [
+        "finance",
+        "ocr",
+        "gotcha"
+      ],
+      "confidence": 0.9,
+      "heat": 5,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.147Z"
+    },
+    {
+      "id": "kn_7af7fa708125",
+      "layer": "knowledge",
+      "type": "claim",
+      "title": "Releases require QA sign-off and documented go/no-go",
+      "content": "Production releases require QA sign-off, a documented go/no-go decision, and recorded rollback steps.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Product",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": "validated",
+      "tags": [
+        "product",
+        "release"
+      ],
+      "confidence": 0.86,
+      "heat": 2,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.151Z"
+    },
+    {
+      "id": "kn_a0633ef123e6",
+      "layer": "knowledge",
+      "type": "capability",
+      "title": "Invoice OCR workflow",
+      "content": "End-to-end invoice automation: deskew + rescale to 300 DPI, extract vendor / tax ID / date / total, validate against expense policy, emit a draft journal entry for human review.",
+      "whyItWorked": "Separates recognition, validation, and approval into distinct steps, and the 300 DPI preprocessing eliminated the dominant failure mode (low-res phone photos).",
+      "owner": "Sarah Kim",
+      "ownerId": "Sarah Kim",
+      "scope": "team",
+      "team": "Finance",
+      "classification": "internal",
+      "sourceUri": "github://demo-corp/invoice-ocr",
+      "sourceTier": "validated",
+      "tags": [
+        "finance",
+        "ocr",
+        "expense",
+        "workflow"
+      ],
+      "confidence": 0.9,
+      "heat": 9,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.154Z"
+    },
+    {
+      "id": "kn_26e2a57c9c5e",
+      "layer": "knowledge",
+      "type": "capability",
+      "title": "Incident postmortem prompt",
+      "content": "Prompt that turns raw incident notes into a structured postmortem: timeline, impact, root cause, mitigation, follow-up actions with owners.",
+      "whyItWorked": "Forces a consistent structure so action items never get lost in prose.",
+      "owner": "Elliot Rivera",
+      "ownerId": "Elliot Rivera",
+      "scope": "team",
+      "team": "Engineering",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": "validated",
+      "tags": [
+        "engineering",
+        "incident",
+        "prompt"
+      ],
+      "confidence": 0.85,
+      "heat": 4,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.157Z"
+    },
+    {
+      "id": "kn_04f7dac7d8ff",
+      "layer": "knowledge",
+      "type": "capability",
+      "title": "Release go/no-go assistant",
+      "content": "Assistant that assembles release scope, risk register, QA status, comms draft, and the go/no-go checklist into one review doc.",
+      "whyItWorked": "Turns the release ritual into structured questions so no gate is skipped under deadline pressure.",
+      "owner": "Priya Rao",
+      "ownerId": "Priya Rao",
+      "scope": "team",
+      "team": "Product",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": "validated",
+      "tags": [
+        "product",
+        "release",
+        "assistant"
+      ],
+      "confidence": 0.84,
+      "heat": 3,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.158Z"
+    },
+    {
+      "id": "kn_7a07b7189821",
+      "layer": "knowledge",
+      "type": "capability",
+      "title": "Onboarding buddy prompt",
+      "content": "Prompt that personalizes a 30-day onboarding checklist by role and department, covering security training and internal tools.",
+      "whyItWorked": "Personalizes by role while staying anchored to HR policy, so answers cite the handbook.",
+      "owner": "Jonas Patel",
+      "ownerId": "Jonas Patel",
+      "scope": "team",
+      "team": "Human Resources",
+      "classification": "public",
+      "sourceUri": null,
+      "sourceTier": "validated",
+      "tags": [
+        "hr",
+        "onboarding",
+        "prompt"
+      ],
+      "confidence": 0.82,
+      "heat": 2,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.160Z"
+    },
+    {
+      "id": "kn_a9aeb8642214",
+      "layer": "knowledge",
+      "type": "capability",
+      "title": "Expense receipt checker prompt",
+      "content": "Prompt that checks a submitted expense against policy: receipt present, itemized, under approval threshold, correct cost center.",
+      "whyItWorked": "Catches policy violations before they reach a human approver.",
+      "owner": "Sarah Kim",
+      "ownerId": "Sarah Kim",
+      "scope": "team",
+      "team": "Finance",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": "validated",
+      "tags": [
+        "finance",
+        "expense",
+        "prompt"
+      ],
+      "confidence": 0.83,
+      "heat": 3,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.161Z"
+    },
+    {
+      "id": "kn_4fea953ae2e2",
+      "layer": "knowledge",
+      "type": "capability",
+      "title": "Receipt validation prompt",
+      "content": "Prompt that validates a submitted expense receipt against policy: receipt attached, itemized, within approval threshold, right cost center.",
+      "whyItWorked": "Blocks non-compliant receipts before manager review.",
+      "owner": "Ops team",
+      "ownerId": "Ops team",
+      "scope": "team",
+      "team": "Operations",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": "community",
+      "tags": [
+        "operations",
+        "expense",
+        "prompt"
+      ],
+      "confidence": 0.7,
+      "heat": 1,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.163Z"
+    },
+    {
+      "id": "kn_208dbb6844c3",
+      "layer": "knowledge",
+      "type": "capability",
+      "title": "Board reporting pack builder",
+      "content": "Workflow that assembles quarterly board pack: financial summary, KPI deltas, risk items, hiring plan.",
+      "whyItWorked": "Standardizes the board narrative and pulls numbers from one vetted source.",
+      "owner": "Priya Rao",
+      "ownerId": "Priya Rao",
+      "scope": "team",
+      "team": "Executive",
+      "classification": "restricted",
+      "sourceUri": null,
+      "sourceTier": "validated",
+      "tags": [
+        "executive",
+        "reporting",
+        "workflow"
+      ],
+      "confidence": 0.88,
+      "heat": 2,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.164Z"
+    },
+    {
+      "id": "wis_b99976925f2d",
+      "layer": "wisdom",
+      "type": "belief",
+      "title": "Adopted: invoice OCR with 300 DPI preprocessing",
+      "content": "The invoice OCR workflow with 300 DPI preprocessing is the adopted finance practice for invoice automation.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": null,
+      "scope": "team",
+      "team": "Finance",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": null,
+      "tags": [
+        "finance",
+        "ocr",
+        "adopted"
+      ],
+      "confidence": 0.92,
+      "heat": 4,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.164Z"
+    },
+    {
+      "id": "mem_e369fa9b7e36",
+      "layer": "memory",
+      "type": "observation",
+      "title": "Private draft ADR",
+      "content": "Only Maya should see this private engineering note.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": "emp_maya",
+      "scope": "private",
+      "team": "Engineering",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": null,
+      "tags": [
+        "private-test"
+      ],
+      "confidence": null,
+      "heat": 0,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.174Z"
+    },
+    {
+      "id": "kn_c5f37c738bbe",
+      "layer": "knowledge",
+      "type": "claim",
+      "title": "Team deploy window",
+      "content": "Engineering deploys on Tuesdays after 6pm UTC.",
+      "whyItWorked": null,
+      "owner": null,
+      "ownerId": "emp_maya",
+      "scope": "team",
+      "team": "Engineering",
+      "classification": "internal",
+      "sourceUri": null,
+      "sourceTier": null,
+      "tags": [
+        "team-test"
+      ],
+      "confidence": null,
+      "heat": 0,
+      "hits": 0,
+      "supersededBy": null,
+      "createdAt": "2026-07-11T05:50:35.175Z"
+    }
+  ],
+  "edges": [
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_cdba069c6d8d",
+      "to": "mem_3a8cc199bad3",
+      "createdAt": "2026-07-11T05:50:35.144Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_0ff5dfa6c34b",
+      "to": "mem_889b26984ff7",
+      "createdAt": "2026-07-11T05:50:35.146Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_d9bb8c46e9c1",
+      "to": "mem_65fb8b4c403f",
+      "createdAt": "2026-07-11T05:50:35.147Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_33af5737f7c9",
+      "to": "mem_086ce2d34e43",
+      "createdAt": "2026-07-11T05:50:35.149Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_33af5737f7c9",
+      "to": "mem_ee8fc019c2a4",
+      "createdAt": "2026-07-11T05:50:35.150Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_7af7fa708125",
+      "to": "mem_feeb5cc4262b",
+      "createdAt": "2026-07-11T05:50:35.152Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_a0633ef123e6",
+      "to": "mem_ee8fc019c2a4",
+      "createdAt": "2026-07-11T05:50:35.155Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_a0633ef123e6",
+      "to": "mem_086ce2d34e43",
+      "createdAt": "2026-07-11T05:50:35.156Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_26e2a57c9c5e",
+      "to": "mem_3ac4dc7add80",
+      "createdAt": "2026-07-11T05:50:35.157Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_04f7dac7d8ff",
+      "to": "mem_feeb5cc4262b",
+      "createdAt": "2026-07-11T05:50:35.159Z"
+    },
+    {
+      "type": "DERIVED_FROM",
+      "from": "kn_a9aeb8642214",
+      "to": "mem_65fb8b4c403f",
+      "createdAt": "2026-07-11T05:50:35.162Z"
+    },
+    {
+      "type": "ABOUT",
+      "from": "wis_b99976925f2d",
+      "to": "kn_a0633ef123e6",
+      "createdAt": "2026-07-11T05:50:35.165Z"
+    },
+    {
+      "type": "ABOUT",
+      "from": "wis_b99976925f2d",
+      "to": "kn_33af5737f7c9",
+      "createdAt": "2026-07-11T05:50:35.166Z"
+    },
+    {
+      "type": "CONTRADICTS",
+      "from": "kn_cdba069c6d8d",
+      "to": "kn_0ff5dfa6c34b",
+      "createdAt": "2026-07-11T05:50:35.167Z"
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "conf_ea1891882a3a",
+      "nodeA": "kn_cdba069c6d8d",
+      "nodeB": "kn_0ff5dfa6c34b",
+      "topic": "Annual leave allowance",
+      "summary": "The authoritative Drive policy says 15 days annual leave; a Slack onboarding rumor says 20. One of these should supersede the other.",
+      "preferred": "kn_cdba069c6d8d",
+      "status": "open",
+      "createdAt": "2026-07-11T05:50:35.167Z"
+    }
+  ],
+  "queries": [
+    {
+      "id": "q_7f75f2279d00",
+      "query": "invoice ocr expense automation",
+      "hitCount": 6,
+      "userId": "seed",
+      "at": "2026-07-11T05:50:35.170Z"
+    },
+    {
+      "id": "q_cd982c0cbac7",
+      "query": "annual leave days",
+      "hitCount": 4,
+      "userId": "seed",
+      "at": "2026-07-11T05:50:35.171Z"
+    },
+    {
+      "id": "q_d71a13d3ceaa",
+      "query": "release checklist",
+      "hitCount": 3,
+      "userId": "seed",
+      "at": "2026-07-11T05:50:35.171Z"
+    },
+    {
+      "id": "q_244ae3fdada8",
+      "query": "postmortem template",
+      "hitCount": 2,
+      "userId": "seed",
+      "at": "2026-07-11T05:50:35.172Z"
+    },
+    {
+      "id": "q_42fa1a96435a",
+      "query": "SOC2 evidence collection checklist",
+      "hitCount": 0,
+      "userId": "seed",
+      "at": "2026-07-11T05:50:35.173Z"
+    },
+    {
+      "id": "q_2b8d5f3e3859",
+      "query": "customer refund policy",
+      "hitCount": 0,
+      "userId": "seed",
+      "at": "2026-07-11T05:50:35.174Z"
+    }
+  ],
+  "sources": [
+    {
+      "id": "slack",
+      "name": "Slack",
+      "category": "chat",
+      "itemCount": 1240,
+      "status": "synced",
+      "lastSync": "2026-07-11T05:50:35.131Z"
+    },
+    {
+      "id": "gdrive",
+      "name": "Google Drive",
+      "category": "docs",
+      "itemCount": 312,
+      "status": "synced",
+      "lastSync": "2026-07-11T05:50:35.132Z"
+    },
+    {
+      "id": "confluence",
+      "name": "Confluence",
+      "category": "wiki",
+      "itemCount": 148,
+      "status": "synced",
+      "lastSync": "2026-07-11T05:50:35.133Z"
+    },
+    {
+      "id": "jira",
+      "name": "Jira",
+      "category": "tickets",
+      "itemCount": 890,
+      "status": "synced",
+      "lastSync": "2026-07-11T05:50:35.134Z"
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "category": "code",
+      "itemCount": 64,
+      "status": "synced",
+      "lastSync": "2026-07-11T05:50:35.134Z"
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "category": "wiki",
+      "itemCount": 0,
+      "status": "not_connected",
+      "lastSync": null
+    }
+  ]
+}
