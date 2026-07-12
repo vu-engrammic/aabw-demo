@@ -35,10 +35,13 @@ async function retainDocument({ text, metadata = {}, mode = 'verbatim' }) {
 
 async function retainFile({ buffer, filename, mimeType, metadata = {} }) {
   const formData = new FormData();
-  formData.append('file', new Blob([buffer], { type: mimeType }), filename);
-  formData.append('metadata', JSON.stringify(metadata));
+  formData.append('files', new Blob([buffer], { type: mimeType }), filename);
+  formData.append('request', JSON.stringify({
+    document_id: filename,
+    tags: metadata.tags || [],
+  }));
 
-  const res = await fetch(`${HINDSIGHT_URL}/v1/default/banks/${BANK_ID}/documents`, {
+  const res = await fetch(`${HINDSIGHT_URL}/v1/default/banks/${BANK_ID}/files/retain`, {
     method: 'POST',
     body: formData,
   });
