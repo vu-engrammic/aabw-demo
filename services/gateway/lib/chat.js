@@ -7,7 +7,8 @@ const { loadEnv } = require('./env');
 loadEnv();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+// ponytail: gemini-2.0-flash is current stable, 1.5 deprecated
+const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
 const SYSTEM_PROMPT = `You are a knowledge assistant for Tasco employees.
 Answer ONLY using the provided sources. If the answer isn't in the sources, say "I don't have information about that in the available documents."
