@@ -4,13 +4,18 @@ import "./style.css";
 import { api } from "./api";
 import { Chat } from "./Chat.jsx";
 import { Upload } from "./Upload.jsx";
+import { LocaleProvider, useLocale, LanguageToggle } from "./i18n.jsx";
 
-const NAV = [
-  { id: "chat", label: "Ask", component: Chat },
-  { id: "upload", label: "Upload", component: Upload },
-];
+function useNav() {
+  const { t } = useLocale();
+  return [
+    { id: "chat", label: t("nav.ask"), component: Chat },
+    { id: "upload", label: t("nav.upload"), component: Upload },
+  ];
+}
 
 function Login({ personas, workos, onSignedIn }) {
+  const { t } = useLocale();
   const [busy, setBusy] = React.useState("");
   const [error, setError] = React.useState("");
 
@@ -30,16 +35,17 @@ function Login({ personas, workos, onSignedIn }) {
   return (
     <main className="login-shell">
       <div className="login-card">
-        <p className="eyebrow">Tasco</p>
-        <h1>My Tasco</h1>
-        <p className="lede">
-          Enterprise knowledge assistant with AI-powered search and role-based access control.
-        </p>
+        <div className="row split">
+          <p className="eyebrow">{t("login.eyebrow")}</p>
+          <LanguageToggle />
+        </div>
+        <h1>{t("login.title")}</h1>
+        <p className="lede">{t("login.tagline")}</p>
         {error && <p className="error-text">{error}</p>}
         {workos && (
-          <a className="primary link-btn" href="/api/auth/sso">Continue with SSO</a>
+          <a className="primary link-btn" href="/api/auth/sso">{t("login.continueSso")}</a>
         )}
-        <p className="muted">{workos ? "Or use a demo persona:" : "Sign in as a demo persona:"}</p>
+        <p className="muted">{workos ? t("login.orPersona") : t("login.signInPersona")}</p>
         <div className="persona-list">
           {personas.map((p) => (
             <button key={p.userId} type="button" disabled={busy === p.userId} onClick={() => login(p.userId)}>
