@@ -3,6 +3,7 @@ const { loadEnv } = require('./env');
 loadEnv();
 
 const HINDSIGHT_URL = process.env.HINDSIGHT_URL || 'http://localhost:8888';
+const BANK_ID = process.env.HINDSIGHT_BANK_ID || 'mytasco';
 
 async function hindsightFetch(path, options = {}) {
   const url = `${HINDSIGHT_URL}${path}`;
@@ -21,12 +22,13 @@ async function hindsightFetch(path, options = {}) {
 }
 
 async function retainDocument({ text, metadata = {}, mode = 'verbatim' }) {
-  return hindsightFetch('/api/retain', {
+  // ponytail: Hindsight v1 API uses /memories for text retention
+  return hindsightFetch(`/v1/default/banks/${BANK_ID}/memories`, {
     method: 'POST',
     body: JSON.stringify({
       content: text,
       metadata,
-      extraction_mode: mode,
+      type: 'world',
     }),
   });
 }
@@ -35,9 +37,8 @@ async function retainFile({ buffer, filename, mimeType, metadata = {} }) {
   const formData = new FormData();
   formData.append('file', new Blob([buffer], { type: mimeType }), filename);
   formData.append('metadata', JSON.stringify(metadata));
-  formData.append('extraction_mode', 'verbatim');
 
-  const res = await fetch(`${HINDSIGHT_URL}/api/documents`, {
+  const res = await fetch(`${HINDSIGHT_URL}/v1/default/banks/${BANK_ID}/documents`, {
     method: 'POST',
     body: formData,
   });
@@ -49,7 +50,8 @@ async function retainFile({ buffer, filename, mimeType, metadata = {} }) {
 }
 
 async function recallMemories({ query, tags = [], tagsMatch = 'any', topK = 10 }) {
-  return hindsightFetch('/api/recall', {
+  // ponytail: Hindsight v1 API recall endpoint
+  return hindsightFetch(`/v1/default/banks/${BANK_ID}/memories/recall`, {
     method: 'POST',
     body: JSON.stringify({
       query,
@@ -57,6 +59,7 @@ async function recallMemories({ query, tags = [], tagsMatch = 'any', topK = 10 }
       tags_match: tagsMatch,
       max_tokens: 4096,
       budget: 'mid',
+      types: ['world', 'experience', 'observation'],
     }),
   });
 }
@@ -70,10 +73,21 @@ async function healthCheck() {
   }
 }
 
+async function ensureBank() {
+  // Create bank if it doesn't exist
+  try {
+    await hindsightFetch(`/v1/default/banks/${BANK_ID}`, { method: 'PUT', body: JSON.stringify({}) });
+  } catch {
+    // Bank might already exist, that's fine
+  }
+}
+
 module.exports = {
   retainDocument,
   retainFile,
   recallMemories,
   healthCheck,
+  ensureBank,
   HINDSIGHT_URL,
+  BANK_ID,
 };
