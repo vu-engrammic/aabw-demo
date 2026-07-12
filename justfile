@@ -7,7 +7,7 @@ set dotenv-load
 # GCP deploy target
 vm_name := "mytasco-vm-14c2caa"
 vm_zone := "us-central1-a"
-remote_dir := "/opt/mytasco"
+remote_dir := "/home/novusedge/aabw-demo"
 
 # Local service endpoints
 gateway_url := "http://127.0.0.1:8790"
