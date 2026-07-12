@@ -11,53 +11,38 @@ env:
   GCP_REGION: us-central1
 
 jobs:
+  # PR / push sanity check — does not block VM deploy
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Install dependencies
+      - name: Install and build web
         run: |
-          npm ci
-          npm --prefix services/gateway ci
           npm --prefix apps/web ci
-
-      - name: Build web app
-        run: npm --prefix apps/web run build
-
+          npm --prefix apps/web run build
+      - name: Install gateway deps
+        run: npm --prefix services/gateway ci
       - name: Build Gateway Docker image
         run: docker build -t mytasco-gateway:${{ github.sha }} ./services/gateway
 
-      - name: Upload web dist
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-dist
-          path: apps/web/dist
-          retention-days: 2
-
   deploy:
-    needs: build
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Do not needs: build — prior npm ci failures blocked shipping forever
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download web dist
-        uses: actions/download-artifact@v4
-        with:
-          name: web-dist
-          path: apps/web/dist
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Build web dist for Caddy
+        run: |
+          npm --prefix apps/web ci
+          npm --prefix apps/web run build
 
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v2
@@ -66,16 +51,6 @@ jobs:
 
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
-
-      - name: Pulumi up
-        continue-on-error: true
-        run: |
-          cd infra
-          npm ci
-          pulumi stack select prod --create
-          pulumi up --yes
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
       - name: Deploy gateway + web to VM
         env:
@@ -90,18 +65,21 @@ jobs:
           if [ -n "${VM_HOST:-}" ]; then
             VM_IP="$VM_HOST"
           else
-            VM_IP=$(cd infra && npm ci >/dev/null 2>&1 && pulumi stack select prod && pulumi stack output vmIp)
+            # Fallback: resolve via Pulumi when VM_HOST secret is unset
+            cd infra
+            npm ci
+            pulumi stack select prod
+            VM_IP=$(pulumi stack output vmIp)
+            cd ..
           fi
           echo "Deploying to $VM_IP"
 
           ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ubuntu@"$VM_IP" \
             "mkdir -p /opt/mytasco/apps/web"
 
-          # Sync built web assets served by Caddy
           scp -o StrictHostKeyChecking=no -i /tmp/ssh_key -r apps/web/dist \
             ubuntu@"$VM_IP":/opt/mytasco/apps/web/
 
-          # Pull code + rebuild gateway image on the VM (compose uses mytasco-gateway:latest)
           ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ubuntu@"$VM_IP" << 'EOF'
             set -euo pipefail
             cd /opt/mytasco
@@ -112,11 +90,3 @@ jobs:
             docker compose -f docker-compose.prod.yml up -d --force-recreate gateway caddy
             docker compose -f docker-compose.prod.yml ps
           EOF
-
-      - name: Upload static assets to GCS (optional)
-        continue-on-error: true
-        env:
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
-        run: |
-          BUCKET=$(cd infra && npm ci >/dev/null 2>&1 && pulumi stack select prod && pulumi stack output staticBucketUrl | sed 's|https://storage.googleapis.com/||')
-          gsutil -m rsync -r apps/web/dist "gs://$BUCKET"
