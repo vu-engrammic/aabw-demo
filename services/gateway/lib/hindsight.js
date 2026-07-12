@@ -53,14 +53,13 @@ async function retainFile({ buffer, filename, mimeType, metadata = {} }) {
 }
 
 async function recallMemories({ query, tags = [], tagsMatch = 'any', topK = 10 }) {
-  // ponytail: low budget + fewer tokens = faster recall
   return hindsightFetch(`/v1/default/banks/${BANK_ID}/memories/recall`, {
     method: 'POST',
     body: JSON.stringify({
       query,
       tags: tags.length ? tags : undefined,
       tags_match: tagsMatch,
-      max_tokens: 2000,
+      max_tokens: 3000,
       budget: 'low',
       types: ['world', 'observation'],
     }),

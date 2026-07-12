@@ -1,21 +1,24 @@
 // apps/web/src/Upload.jsx
 import React from "react";
-
-const CLASSIFICATIONS = [
-  { value: "public", label: "Public - All employees" },
-  { value: "internal", label: "Internal - All employees" },
-  { value: "confidential", label: "Confidential - Manager+ in department" },
-  { value: "restricted", label: "Restricted - Executive only" },
-];
-
-const UPLOAD_STEPS = [
-  "Uploading file...",
-  "Processing document...",
-  "Extracting knowledge...",
-  "Almost done...",
-];
+import { useLocale } from "./i18n.jsx";
 
 export function Upload({ user }) {
+  const { t } = useLocale();
+
+  const CLASSIFICATIONS = [
+    { value: "public", label: t("upload.classPublic") },
+    { value: "internal", label: t("upload.classInternal") },
+    { value: "confidential", label: t("upload.classConfidential") },
+    { value: "restricted", label: t("upload.classRestricted") },
+  ];
+
+  const UPLOAD_STEPS = [
+    t("upload.step1"),
+    t("upload.step2"),
+    t("upload.step3"),
+    t("upload.step4"),
+  ];
+
   const [file, setFile] = React.useState(null);
   const [classification, setClassification] = React.useState("internal");
   const [uploading, setUploading] = React.useState(false);
@@ -54,7 +57,7 @@ export function Upload({ user }) {
         credentials: "include",
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      if (!res.ok) throw new Error(data.error || t("upload.uploadFailed"));
       setResult(data);
       setFile(null);
     } catch (err) {
@@ -72,8 +75,8 @@ export function Upload({ user }) {
 
   return (
     <div className="upload-container">
-      <h2>Upload Document</h2>
-      <p className="muted">Add documents to the knowledge base for your team.</p>
+      <h2>{t("upload.title")}</h2>
+      <p className="muted">{t("upload.subtitle")}</p>
 
       <form onSubmit={handleUpload}>
         <div
@@ -94,12 +97,12 @@ export function Upload({ user }) {
           {file ? (
             <p><strong>{file.name}</strong> ({(file.size / 1024).toFixed(1)} KB)</p>
           ) : (
-            <p>Drop a file here or click to select</p>
+            <p>{t("upload.dropZone")}</p>
           )}
         </div>
 
         <label className="field">
-          <span>Classification</span>
+          <span>{t("upload.classification")}</span>
           <select value={classification} onChange={(e) => setClassification(e.target.value)} disabled={uploading}>
             {CLASSIFICATIONS.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -108,12 +111,12 @@ export function Upload({ user }) {
         </label>
 
         <label className="field">
-          <span>Team</span>
+          <span>{t("upload.team")}</span>
           <input type="text" value={user.department} disabled />
         </label>
 
         <button type="submit" className="primary" disabled={!file || uploading}>
-          {uploading ? "Processing..." : "Upload"}
+          {uploading ? t("upload.processing") : t("upload.uploadButton")}
         </button>
       </form>
 
@@ -128,8 +131,7 @@ export function Upload({ user }) {
 
       {result && (
         <div className="success-banner">
-          <strong>{result.filename || "Document"}</strong> uploaded successfully!
-          It will be available in search shortly.
+          <strong>{result.filename || t("upload.documentFallback")}</strong> {t("upload.successSuffix")}
         </div>
       )}
 
