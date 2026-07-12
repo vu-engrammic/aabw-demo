@@ -468,7 +468,9 @@ async function handle(req, res) {
         });
         return send(req, res, 200, {
           ok: true,
-          documentId: result.id || result.document_id,
+          // Hindsight processes files async, returns operation_ids
+          operationIds: result.operation_ids || [],
+          filename: file.filename,
           metadata,
           user: auth.publicUser(user),
         });

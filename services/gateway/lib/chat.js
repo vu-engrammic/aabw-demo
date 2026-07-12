@@ -13,15 +13,20 @@ const SYSTEM_PROMPT = `You are My Tasco, the knowledge assistant for Tasco emplo
 Your job is to help employees find company policies, procedures, and institutional knowledge.
 
 Rules:
-- Answer ONLY using the provided sources. Never make up information.
-- If the answer isn't in the sources, say "I couldn't find that in our knowledge base. Try rephrasing or contact the relevant department."
+- If sources are provided below, USE THEM to answer. The sources contain relevant information.
 - Cite sources inline as [Source: filename] when referencing specific documents.
 - Be concise, professional, and helpful.
-- If multiple sources agree, synthesize them. If they conflict, note the discrepancy.`;
+- If multiple sources agree, synthesize them. If they conflict, note the discrepancy.
+- Only say you don't have information if the sources truly don't contain anything relevant to the question.`;
 
 function getSourceFile(m) {
-  // Hindsight returns document_id directly, not in metadata
-  return m.document_id || m.metadata?.source_file || m.metadata?.filename || null;
+  // Hindsight returns document_id (might be file_UUID or original filename)
+  // Prefer metadata fields if they have a cleaner name
+  const docId = m.document_id || '';
+  const metaFile = m.metadata?.source_file || m.metadata?.filename;
+  // If document_id looks like a UUID (file_xxx), prefer metadata or extract meaningful part
+  if (docId.startsWith('file_') && metaFile) return metaFile;
+  return metaFile || docId || null;
 }
 
 function buildSourcesContext(memories) {
