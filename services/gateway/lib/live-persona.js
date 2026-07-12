@@ -18,14 +18,15 @@ function resolveLiveUser(personaId) {
       // fall through
     }
   }
-  const fallback = process.env.LIVE_DEFAULT_PERSONA || 'emp_maya';
+  const fallback = process.env.LIVE_DEFAULT_PERSONA || 'u004';
   const persona = auth.loadPersonas().find((p) => p.userId === fallback);
   if (persona) return persona;
   return {
-    userId: 'emp_maya',
+    userId: 'u004',
     role: 'employee',
     department: 'Engineering',
-    fullName: 'Maya Chen',
+    departmentCode: 'ENG',
+    fullName: 'Phạm Quốc Dũng',
   };
 }
 

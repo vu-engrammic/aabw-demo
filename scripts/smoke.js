@@ -8,7 +8,7 @@
  */
 
 const BASE = process.env.GATEWAY_URL || 'http://127.0.0.1:8790';
-const PERSONA_ID = process.env.SMOKE_PERSONA || 'emp_maya';
+const PERSONA_ID = process.env.SMOKE_PERSONA || 'u004';
 
 let cookie = null;
 let passed = 0;

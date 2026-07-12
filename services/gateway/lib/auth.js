@@ -48,12 +48,29 @@ function workosConfigStatus() {
   };
 }
 
+/** Legacy demo aliases → challenge persona ids (u004 eng employee, u007 executive). */
+const PERSONA_ALIASES = {
+  emp_maya: 'u004',
+  exec_priya: 'u007',
+  mgr_sarah: 'u002',
+  mgr_jonas: 'u001',
+  dir_elliot: 'u003',
+  mgr_linh: 'u005',
+  mgr_an: 'u006',
+  emp_bao: 'u008',
+};
+
 function loadPersonas() {
   try {
     return JSON.parse(fs.readFileSync(USERS_PATH, 'utf8'));
   } catch {
     return [];
   }
+}
+
+function resolvePersonaId(personaId) {
+  const id = String(personaId || '');
+  return PERSONA_ALIASES[id] || id;
 }
 
 function publicUser(user) {
@@ -187,7 +204,8 @@ async function authenticateCode(code) {
 }
 
 function devLogin(personaId) {
-  const persona = loadPersonas().find((p) => p.userId === personaId);
+  const resolved = resolvePersonaId(personaId);
+  const persona = loadPersonas().find((p) => p.userId === resolved);
   if (!persona) throw new Error('Unknown persona');
   return { ...persona, authProvider: 'dev' };
 }

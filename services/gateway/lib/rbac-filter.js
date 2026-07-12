@@ -45,16 +45,13 @@ function buildMetadataFilter(user) {
     return { tags: [], canSeeAll: true, team, rank };
   }
 
-  const tags = [];
-
-  // Company knowledge — all employees
-  tags.push('classification:public');
-  tags.push('classification:internal');
-
-  // Department knowledge — manager+ in own team only
-  if (rank >= 1) {
-    tags.push(`classification:confidential,team:${team}`);
-  }
+  // Company knowledge (public + internal) for everyone
+  const tags = [
+    'classification:public',
+    'classification:internal',
+    // Department knowledge — own team confidential for employee/manager/director
+    `classification:confidential,team:${team}`,
+  ];
 
   // restricted / executive knowledge intentionally omitted for non-executives
 
@@ -70,9 +67,9 @@ function classificationToRoleRequired(classification) {
   switch (String(classification).toLowerCase()) {
     case 'public':
     case 'internal':
-      return 0;
     case 'confidential':
-      return 1;
+      // Confidential is own-department for any non-exec role (employee+)
+      return 0;
     case 'restricted':
       return 3;
     default:
@@ -82,7 +79,7 @@ function classificationToRoleRequired(classification) {
 
 /**
  * Hindsight visibility tags for a document.
- * Confidential uses a compound tag so managers only see their own team.
+ * Confidential uses a compound tag so non-execs only see their own team.
  */
 function buildIngestTags({ classification, team }) {
   const cls = String(classification || 'internal').toLowerCase();
@@ -145,7 +142,6 @@ function filterMemoriesForUser(memories, user) {
   if (!user) return [];
   if (getRoleRank(user.role) >= 3) return memories;
 
-  const rank = getRoleRank(user.role);
   const userTeam = teamSlug(user.department);
 
   return memories.filter((m) => {
@@ -157,7 +153,8 @@ function filterMemoriesForUser(memories, user) {
     if (classification === 'public' || classification === 'internal') return true;
     if (classification === 'restricted') return false;
     if (classification === 'confidential') {
-      return rank >= 1 && team && team === userTeam;
+      // Own department for employee / manager / director; executive handled above
+      return Boolean(team && team === userTeam);
     }
     return false;
   });

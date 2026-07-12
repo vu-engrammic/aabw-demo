@@ -27,7 +27,7 @@ async function main() {
   const login = await fetch(`${BASE}/api/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ personaId: 'exec_priya' }),
+    body: JSON.stringify({ personaId: 'u007' }),
   });
   const loginBody = await login.json().catch(() => ({}));
   if (!login.ok) {

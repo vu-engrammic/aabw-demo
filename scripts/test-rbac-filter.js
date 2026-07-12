@@ -34,37 +34,57 @@ const meta = buildIngestMetadata({
 });
 assert.ok(meta.tags.includes('classification:restricted'));
 
-const maya = { userId: 'emp_maya', role: 'employee', department: 'Engineering' };
-const jonas = { userId: 'mgr_jonas', role: 'manager', department: 'Human Resources' };
-const priya = { userId: 'exec_priya', role: 'executive', department: 'Executive Office' };
+const engEmployee = { userId: 'u004', role: 'employee', department: 'Engineering' };
+const hrManager = { userId: 'u001', role: 'employee', department: 'Human Resources' };
+const hrDirector = { userId: 'u006', role: 'director', department: 'Legal & Compliance' };
+const executive = { userId: 'u007', role: 'executive', department: 'Executive Office' };
 
-const mayaFilter = buildMetadataFilter(maya);
-assert.ok(mayaFilter.tags.includes('classification:internal'));
-assert.ok(!mayaFilter.tags.some((t) => t.includes('restricted')));
-assert.equal(mayaFilter.canSeeAll, false);
-assert.equal(buildMetadataFilter(priya).canSeeAll, true);
+const engFilter = buildMetadataFilter(engEmployee);
+assert.ok(engFilter.tags.includes('classification:internal'));
+assert.ok(engFilter.tags.includes('classification:confidential,team:engineering'));
+assert.ok(!engFilter.tags.some((t) => t.includes('restricted')));
+assert.equal(engFilter.canSeeAll, false);
+assert.equal(buildMetadataFilter(executive).canSeeAll, true);
+
+// Employee confidential tag is own-dept (challenge: Own Department for employee/manager/director)
+const hrEmpFilter = buildMetadataFilter(hrManager);
+assert.ok(hrEmpFilter.tags.includes('classification:confidential,team:human-resources'));
 
 const memories = [
   { id: 1, tags: ['classification:internal', 'team:human-resources'], text: 'probation 3 months' },
-  { id: 2, tags: ['classification:confidential,team:human-resources'], text: 'salary bands' },
-  { id: 3, tags: ['classification:restricted', 'team:executive'], text: 'M&A pipeline' },
-  { id: 4, text: 'untagged leak' },
+  { id: 2, tags: ['classification:confidential,team:engineering'], text: 'eng salary bands' },
+  { id: 3, tags: ['classification:confidential,team:human-resources'], text: 'hr salary bands' },
+  { id: 4, tags: ['classification:restricted', 'team:executive'], text: 'M&A pipeline' },
+  { id: 5, text: 'untagged leak' },
 ];
 
 assert.deepEqual(
-  filterMemoriesForUser(memories, maya).map((m) => m.id),
-  [1],
-  'Maya sees only internal'
-);
-assert.deepEqual(
-  filterMemoriesForUser(memories, jonas).map((m) => m.id).sort(),
+  filterMemoriesForUser(memories, engEmployee).map((m) => m.id).sort(),
   [1, 2],
-  'Jonas sees internal + HR confidential'
+  'Engineering employee sees internal + own-dept confidential; not other-dept confidential or restricted'
 );
 assert.deepEqual(
-  filterMemoriesForUser(memories, priya).map((m) => m.id).sort(),
-  [1, 2, 3, 4],
-  'Priya sees all'
+  filterMemoriesForUser(memories, hrManager).map((m) => m.id).sort(),
+  [1, 3],
+  'HR employee sees internal + HR confidential; not eng confidential or restricted'
+);
+assert.deepEqual(
+  filterMemoriesForUser(memories, hrDirector).map((m) => m.id).sort(),
+  [1],
+  'Legal director sees internal only (no legal confidential in fixture); not restricted'
+);
+assert.ok(
+  !filterMemoriesForUser(memories, engEmployee).some((m) => m.id === 3),
+  'Employee cannot see other-dept confidential'
+);
+assert.ok(
+  !filterMemoriesForUser(memories, engEmployee).some((m) => m.id === 4),
+  'Employee cannot see restricted'
+);
+assert.deepEqual(
+  filterMemoriesForUser(memories, executive).map((m) => m.id).sort(),
+  [1, 2, 3, 4, 5],
+  'Executive sees all'
 );
 
 console.log('test-rbac-filter: OK');
