@@ -1,107 +1,20 @@
 // apps/web/src/Chat.jsx
 import React from "react";
+import Markdown from "react-markdown";
 import { api } from "./api";
-
-// Simple markdown renderer for chat responses
-function Markdown({ text }) {
-  if (!text) return null;
-
-  // Split into paragraphs/lines
-  const lines = text.split('\n');
-  const elements = [];
-  let listItems = [];
-  let inList = false;
-
-  function flushList() {
-    if (listItems.length > 0) {
-      elements.push(<ul key={`list-${elements.length}`}>{listItems}</ul>);
-      listItems = [];
-    }
-    inList = false;
-  }
-
-  function renderInline(str) {
-    // Bold: **text** or __text__
-    // Italic: *text* or _text_
-    // Source refs: [Source: filename]
-    const parts = [];
-    let remaining = str;
-    let key = 0;
-
-    const patterns = [
-      { regex: /\*\*(.+?)\*\*/g, render: (m) => <strong key={key++}>{m}</strong> },
-      { regex: /\*(.+?)\*/g, render: (m) => <em key={key++}>{m}</em> },
-      { regex: /\[Source:\s*([^\]]+)\]/g, render: (m) => <span key={key++} className="source-ref">[{m}]</span> },
-    ];
-
-    // Simple approach: process bold first, then others
-    remaining = remaining.replace(/\*\*(.+?)\*\*/g, '⟦BOLD⟧$1⟦/BOLD⟧');
-    remaining = remaining.replace(/\[Source:\s*([^\]]+)\]/g, '⟦SRC⟧$1⟦/SRC⟧');
-
-    const tokens = remaining.split(/(⟦BOLD⟧|⟦\/BOLD⟧|⟦SRC⟧|⟦\/SRC⟧)/);
-    let inBold = false;
-    let inSrc = false;
-
-    for (const token of tokens) {
-      if (token === '⟦BOLD⟧') { inBold = true; continue; }
-      if (token === '⟦/BOLD⟧') { inBold = false; continue; }
-      if (token === '⟦SRC⟧') { inSrc = true; continue; }
-      if (token === '⟦/SRC⟧') { inSrc = false; continue; }
-      if (!token) continue;
-
-      if (inBold) {
-        parts.push(<strong key={key++}>{token}</strong>);
-      } else if (inSrc) {
-        parts.push(<span key={key++} className="source-ref">[{token}]</span>);
-      } else {
-        parts.push(token);
-      }
-    }
-
-    return parts;
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // List item (- or * or numbered)
-    const listMatch = trimmed.match(/^[-*•]\s+(.+)$/) || trimmed.match(/^\d+\.\s+(.+)$/);
-    if (listMatch) {
-      if (!inList) inList = true;
-      listItems.push(<li key={`li-${i}`}>{renderInline(listMatch[1])}</li>);
-      continue;
-    }
-
-    // End of list
-    if (inList && trimmed === '') {
-      flushList();
-      continue;
-    }
-
-    if (inList) {
-      flushList();
-    }
-
-    // Empty line
-    if (trimmed === '') {
-      continue;
-    }
-
-    // Regular paragraph
-    elements.push(<p key={`p-${i}`}>{renderInline(trimmed)}</p>);
-  }
-
-  flushList();
-
-  return <div className="markdown-content">{elements}</div>;
-}
 
 export function Chat({ user }) {
   const [query, setQuery] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [result, setResult] = React.useState(null);
   const [error, setError] = React.useState("");
+  const responseRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (result && responseRef.current) {
+      responseRef.current.scrollTop = 0;
+    }
+  }, [result]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -125,146 +38,285 @@ export function Chat({ user }) {
   }
 
   return (
-    <div className="chat-container">
-      <form className="chat-form" onSubmit={handleSubmit}>
+    <div className="chat-layout">
+      {/* Scrollable response area */}
+      <div className="chat-response-area" ref={responseRef}>
+        {!result && !loading && !error && (
+          <div className="chat-placeholder">
+            <h2>Ask My Tasco</h2>
+            <p>Ask questions about company policies, procedures, and knowledge.</p>
+            <div className="example-queries">
+              <span>Try:</span>
+              <button type="button" onClick={() => setQuery("What is the leave policy?")}>Leave policy</button>
+              <button type="button" onClick={() => setQuery("How do I submit expenses?")}>Expense claims</button>
+              <button type="button" onClick={() => setQuery("What's the probation period?")}>Probation</button>
+            </div>
+          </div>
+        )}
+
+        {loading && (
+          <div className="chat-loading">
+            <div className="spinner"></div>
+            <span>Searching knowledge base...</span>
+          </div>
+        )}
+
+        {error && <div className="error-banner">{error}</div>}
+
+        {result && (
+          <div className="chat-result">
+            <div className="answer-card">
+              <div className="confidence-badge" data-level={result.confidence}>
+                {result.confidence} confidence
+              </div>
+              <div className="answer-content">
+                <Markdown>{result.answer}</Markdown>
+              </div>
+            </div>
+
+            {result.sources?.length > 0 && (
+              <details className="sources-section" open>
+                <summary>Sources ({result.sources.length})</summary>
+                <div className="sources-list">
+                  {result.sources.slice(0, 5).map((src) => (
+                    <div key={src.id} className="source-card">
+                      <div className="source-header">
+                        <span className="source-id">[{src.id}]</span>
+                        <span className="source-file">{src.file || 'knowledge base'}</span>
+                        {src.score && <span className="source-score">{(src.score * 100).toFixed(0)}%</span>}
+                      </div>
+                      <p className="source-chunk">{src.chunk}</p>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+
+            {result.deniedCount > 0 && (
+              <div className="denied-banner">
+                {result.deniedCount} document{result.deniedCount > 1 ? "s" : ""} hidden by access level
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Input at bottom */}
+      <form className="chat-input-bar" onSubmit={handleSubmit}>
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask a question about company policies, procedures..."
+          placeholder="Ask a question..."
           disabled={loading}
         />
         <button type="submit" className="primary" disabled={loading || !query.trim()}>
-          {loading ? "Thinking..." : "Ask"}
+          {loading ? "..." : "Ask"}
         </button>
       </form>
 
-      {error && <div className="error-banner">{error}</div>}
-
-      {result && (
-        <div className="chat-result">
-          <div className="answer-card">
-            <div className="confidence-badge" data-level={result.confidence}>
-              {result.confidence} confidence
-            </div>
-            <Markdown text={result.answer} />
-          </div>
-
-          {result.sources?.length > 0 && (
-            <details className="sources-section">
-              <summary>
-                <h3>Sources ({result.sources.length})</h3>
-              </summary>
-              <div className="sources-list">
-                {result.sources.slice(0, 5).map((src) => (
-                  <div key={src.id} className="source-card">
-                    <div className="source-header">
-                      <span className="source-id">[{src.id}]</span>
-                      <span className="source-file">{src.file || 'knowledge base'}</span>
-                      {src.score && <span className="source-score">{(src.score * 100).toFixed(0)}%</span>}
-                    </div>
-                    <p className="source-chunk">{src.chunk}</p>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-
-          {result.deniedCount > 0 && (
-            <div className="denied-banner">
-              {result.deniedCount} document{result.deniedCount > 1 ? "s" : ""} hidden by access level
-            </div>
-          )}
-        </div>
-      )}
-
       <style>{`
-        .markdown-content p {
-          margin: 0 0 0.75em;
-          line-height: 1.6;
+        .chat-layout {
+          display: flex;
+          flex-direction: column;
+          height: calc(100vh - 120px);
+          max-height: 800px;
         }
-        .markdown-content p:last-child {
-          margin-bottom: 0;
+        .chat-response-area {
+          flex: 1;
+          overflow-y: auto;
+          padding: 1.5rem;
+          background: var(--bg-secondary, #fafafa);
+          border-radius: 12px 12px 0 0;
         }
-        .markdown-content ul {
-          margin: 0.5em 0 1em 1.5em;
-          padding: 0;
+        .chat-placeholder {
+          text-align: center;
+          padding: 3rem 1rem;
+          color: var(--text-secondary, #666);
         }
-        .markdown-content li {
-          margin: 0.4em 0;
-          line-height: 1.5;
-        }
-        .markdown-content strong {
-          font-weight: 600;
+        .chat-placeholder h2 {
+          margin: 0 0 0.5rem;
           color: var(--text-primary, #1a1a1a);
         }
-        .source-ref {
-          font-size: 0.85em;
-          color: var(--primary, #0066cc);
-          background: var(--bg-secondary, #f0f4f8);
-          padding: 0.1em 0.4em;
-          border-radius: 4px;
-          font-family: var(--font-mono, monospace);
+        .example-queries {
+          margin-top: 1.5rem;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          justify-content: center;
+          align-items: center;
         }
-        .sources-section {
-          margin-top: 1.5em;
+        .example-queries span {
+          font-size: 0.85em;
+        }
+        .example-queries button {
+          font-size: 0.85em;
+          padding: 0.4em 0.8em;
+          border: 1px solid var(--border, #ddd);
+          background: var(--bg-primary, #fff);
+          border-radius: 20px;
+          cursor: pointer;
+        }
+        .example-queries button:hover {
+          background: var(--primary, #c75a3a);
+          color: white;
+          border-color: var(--primary, #c75a3a);
+        }
+        .chat-loading {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 1rem;
+          padding: 3rem;
+          color: var(--text-secondary, #666);
+        }
+        .spinner {
+          width: 24px;
+          height: 24px;
+          border: 3px solid var(--border, #ddd);
+          border-top-color: var(--primary, #c75a3a);
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .chat-input-bar {
+          display: flex;
+          gap: 0.75rem;
+          padding: 1rem;
+          background: var(--bg-primary, #fff);
           border: 1px solid var(--border, #e0e0e0);
+          border-radius: 0 0 12px 12px;
+          border-top: none;
+        }
+        .chat-input-bar input {
+          flex: 1;
+          padding: 0.75rem 1rem;
+          font-size: 1rem;
+          border: 1px solid var(--border, #ddd);
+          border-radius: 8px;
+        }
+        .chat-input-bar button {
+          padding: 0.75rem 1.5rem;
+        }
+
+        .answer-card {
+          background: var(--bg-primary, #fff);
+          border-radius: 12px;
+          padding: 1.5rem;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .answer-content {
+          line-height: 1.7;
+        }
+        .answer-content h1, .answer-content h2, .answer-content h3 {
+          margin: 1em 0 0.5em;
+          line-height: 1.3;
+        }
+        .answer-content h1 { font-size: 1.4em; }
+        .answer-content h2 { font-size: 1.2em; }
+        .answer-content h3 { font-size: 1.1em; }
+        .answer-content p {
+          margin: 0 0 1em;
+        }
+        .answer-content ul, .answer-content ol {
+          margin: 0.5em 0 1em;
+          padding-left: 1.5em;
+        }
+        .answer-content li {
+          margin: 0.4em 0;
+        }
+        .answer-content code {
+          background: var(--bg-secondary, #f5f5f5);
+          padding: 0.2em 0.4em;
+          border-radius: 4px;
+          font-size: 0.9em;
+        }
+        .answer-content strong {
+          font-weight: 600;
+        }
+
+        .confidence-badge {
+          display: inline-block;
+          font-size: 0.75rem;
+          font-weight: 500;
+          padding: 0.25em 0.75em;
+          border-radius: 20px;
+          margin-bottom: 1rem;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .confidence-badge[data-level="high"] {
+          background: #d4edda;
+          color: #155724;
+        }
+        .confidence-badge[data-level="medium"] {
+          background: #fff3cd;
+          color: #856404;
+        }
+        .confidence-badge[data-level="low"] {
+          background: #f8d7da;
+          color: #721c24;
+        }
+
+        .sources-section {
+          margin-top: 1.5rem;
+          background: var(--bg-primary, #fff);
           border-radius: 8px;
           overflow: hidden;
         }
         .sources-section summary {
-          padding: 0.75em 1em;
+          padding: 0.75rem 1rem;
           background: var(--bg-secondary, #f5f5f5);
           cursor: pointer;
-          user-select: none;
-        }
-        .sources-section summary h3 {
-          display: inline;
-          font-size: 0.9em;
-          margin: 0;
+          font-weight: 500;
+          font-size: 0.9rem;
         }
         .sources-list {
-          padding: 0.5em;
+          padding: 0.5rem;
         }
         .source-card {
-          padding: 0.75em;
-          margin: 0.5em 0;
-          background: var(--bg-primary, #fff);
+          padding: 0.75rem;
+          margin: 0.5rem 0;
           border: 1px solid var(--border-light, #eee);
           border-radius: 6px;
         }
         .source-header {
           display: flex;
           align-items: center;
-          gap: 0.5em;
-          margin-bottom: 0.5em;
+          gap: 0.5rem;
+          margin-bottom: 0.5rem;
         }
         .source-id {
           font-weight: 600;
-          color: var(--primary, #0066cc);
+          color: var(--primary, #c75a3a);
         }
         .source-file {
-          font-family: var(--font-mono, monospace);
-          font-size: 0.85em;
+          font-family: monospace;
+          font-size: 0.8em;
           color: var(--text-secondary, #666);
+          background: var(--bg-secondary, #f5f5f5);
+          padding: 0.2em 0.5em;
+          border-radius: 4px;
         }
         .source-score {
           margin-left: auto;
-          font-size: 0.8em;
-          padding: 0.2em 0.5em;
-          background: var(--bg-secondary, #f0f0f0);
-          border-radius: 4px;
-          color: var(--text-secondary, #666);
+          font-size: 0.75em;
+          color: var(--text-secondary, #888);
         }
         .source-chunk {
           font-size: 0.85em;
           color: var(--text-secondary, #555);
           margin: 0;
           line-height: 1.4;
-          display: -webkit-box;
-          -webkit-line-clamp: 3;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
+        }
+        .denied-banner {
+          margin-top: 1rem;
+          padding: 0.75rem;
+          background: #fff3cd;
+          border-radius: 6px;
+          font-size: 0.85em;
+          color: #856404;
         }
       `}</style>
     </div>
