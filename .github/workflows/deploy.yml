@@ -3,12 +3,13 @@ name: Deploy
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
 
 env:
-  # Public demo IP for mytasco.engrammic.ai
-  DEFAULT_VM_HOST: 136.116.136.145
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  GCP_REGION: us-central1
+  VM_NAME: mytasco-vm-14c2caa
+  VM_ZONE: us-central1-a
 
 jobs:
   build:
@@ -26,64 +27,88 @@ jobs:
         run: npm --prefix services/gateway install --omit=dev
       - name: Build Gateway Docker image
         run: docker build -t mytasco-gateway:${{ github.sha }} ./services/gateway
+      - name: Upload web dist
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: apps/web/dist
+          retention-days: 2
 
-  # Ships gateway without GCP / Pulumi — only needs VM_SSH_KEY
   deploy:
+    needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Download web dist
+        uses: actions/download-artifact@v4
         with:
-          node-version: '20'
+          name: web-dist
+          path: apps/web/dist
 
-      - name: Build web dist for Caddy
-        continue-on-error: true
-        run: |
-          npm --prefix apps/web ci
-          npm --prefix apps/web run build
-
-      - name: Deploy gateway to VM over SSH
+      - name: Check deploy secrets
         env:
-          VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
-          VM_HOST: ${{ secrets.VM_HOST }}
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           set -euo pipefail
-          if [ -z "${VM_SSH_KEY:-}" ]; then
-            echo "Missing GitHub secret VM_SSH_KEY" >&2
+          if [ -z "${GCP_SA_KEY:-}" ]; then
+            echo "::error::Secret GCP_SA_KEY is empty. Add a service-account JSON key with compute.instanceAdmin.v1 + iap.tunnelResourceAccessor on the mytasco VM."
             exit 1
           fi
-          printf '%s\n' "$VM_SSH_KEY" > /tmp/ssh_key
-          chmod 600 /tmp/ssh_key
-          ssh-keygen -y -f /tmp/ssh_key >/dev/null
-
-          VM_IP="${VM_HOST:-$DEFAULT_VM_HOST}"
-          echo "Deploying to ubuntu@$VM_IP"
-
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i /tmp/ssh_key ubuntu@"$VM_IP" \
-            "mkdir -p /opt/mytasco/apps/web"
-
-          if [ -d apps/web/dist ]; then
-            scp -o StrictHostKeyChecking=no -i /tmp/ssh_key -r apps/web/dist \
-              ubuntu@"$VM_IP":/opt/mytasco/apps/web/ || echo "web dist sync skipped"
+          if [ -z "${GCP_PROJECT_ID:-}" ]; then
+            echo "::error::Secret GCP_PROJECT_ID is empty."
+            exit 1
           fi
+          python3 - <<'PY'
+          import json, os, sys
+          raw = os.environ["GCP_SA_KEY"]
+          try:
+              data = json.loads(raw)
+          except Exception as e:
+              print(f"::error::GCP_SA_KEY is not valid JSON: {e}")
+              sys.exit(1)
+          for k in ("type", "project_id", "private_key", "client_email"):
+              if k not in data:
+                  print(f"::error::GCP_SA_KEY missing field {k}")
+                  sys.exit(1)
+          print(f"SA ok: {data['client_email']} project={data.get('project_id')}")
+          PY
 
-          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i /tmp/ssh_key ubuntu@"$VM_IP" bash -s << 'EOF'
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Deploy via IAP SSH
+        run: |
+          set -euo pipefail
+          gcloud config set project "$GCP_PROJECT_ID"
+
+          # Ensure OS Login / IAP SSH works from Actions
+          gcloud compute instances describe "$VM_NAME" --zone="$VM_ZONE" --format='value(name,status,networkInterfaces[0].accessConfigs[0].natIP)'
+
+          # Sync web assets
+          gcloud compute scp --tunnel-through-iap --zone="$VM_ZONE" --recurse \
+            apps/web/dist ubuntu@"$VM_NAME":/opt/mytasco/apps/web/
+
+          # Rebuild gateway on the VM (port 22 is not public — must use IAP)
+          gcloud compute ssh "$VM_NAME" --zone="$VM_ZONE" --tunnel-through-iap --command='
             set -euo pipefail
             cd /opt/mytasco
             git fetch origin main
             git checkout main
             git pull --ff-only origin main
             docker build -t mytasco-gateway:latest ./services/gateway
-            docker compose -f docker-compose.prod.yml up -d --force-recreate gateway
-            if [ -d apps/web/dist ]; then
-              docker compose -f docker-compose.prod.yml up -d --force-recreate caddy || true
-            fi
+            docker compose -f docker-compose.prod.yml up -d --force-recreate gateway caddy
             docker compose -f docker-compose.prod.yml ps
-            echo "--- health ---"
-            curl -sf http://127.0.0.1:8790/health || true
+            curl -sf http://127.0.0.1:8790/health
             echo
-            echo "--- routes check ---"
-            curl -sf -o /dev/null -w "departments_unauth=%{http_code}\n" http://127.0.0.1:8790/departments || true
-          EOF
+          '
