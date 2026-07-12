@@ -99,11 +99,15 @@ infra-preview:
 ssh:
     gcloud compute ssh {{vm_name}} --zone={{vm_zone}}
 
-# Tunnel VM port 80 to localhost:8080 (access via http://localhost:8080)
-tunnel port="8080":
-    @echo "Tunneling VM port 80 to http://localhost:{{port}}"
+# Tunnel all VM services to localhost (gateway:8790, hindsight:8888/9999, caddy:80)
+tunnel:
+    @echo "Tunneling VM services to localhost:"
+    @echo "  http://localhost:8080  → Caddy (web)"
+    @echo "  http://localhost:8790  → Gateway API"
+    @echo "  http://localhost:8888  → Hindsight API"
+    @echo "  http://localhost:9999  → Hindsight UI"
     @echo "Press Ctrl+C to stop"
-    gcloud compute ssh {{vm_name}} --zone={{vm_zone}} -- -N -L {{port}}:localhost:80
+    gcloud compute ssh {{vm_name}} --zone={{vm_zone}} -- -N -L 8080:localhost:80 -L 8790:localhost:8790 -L 8888:localhost:8888 -L 9999:localhost:9999
 
 # Tail logs on the VM (gateway + hindsight + caddy)
 vm-logs:
