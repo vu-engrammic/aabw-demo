@@ -19,6 +19,9 @@ services:
   hindsight:
     image: ghcr.io/vectorize-io/hindsight:latest
     container_name: hindsight
+    ports:
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:9999:9999"
     environment:
       - HINDSIGHT_API_LLM_PROVIDER=gemini
       - HINDSIGHT_API_LLM_API_KEY=${GEMINI_API_KEY}
@@ -29,6 +32,8 @@ services:
   gateway:
     image: mytasco-gateway:latest
     container_name: gateway
+    ports:
+      - "127.0.0.1:8790:8790"
     environment:
       - GATEWAY_PORT=8790
       - BIND_HOST=0.0.0.0
