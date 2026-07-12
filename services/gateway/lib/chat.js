@@ -1,13 +1,22 @@
 // services/gateway/lib/chat.js
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { recallMemories } = require('./hindsight');
-const { buildMetadataFilter, filterMemoriesForUser } = require('./rbac-filter');
+const {
+  buildMetadataFilter,
+  filterMemoriesForUser,
+  memoryAccessMeta,
+} = require('./rbac-filter');
 const { loadEnv } = require('./env');
 
 loadEnv();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.0-flash' });
+const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || 'gemini-2.5-flash' });
+
+const EMPTY_ANSWER = {
+  en: "I couldn't find that in our knowledge base. Try rephrasing your question or contact the relevant department directly.",
+  vi: 'Không tìm thấy thông tin trong kho tri thức. Hãy diễn đạt lại câu hỏi hoặc liên hệ phòng ban liên quan.',
+};
 
 const SYSTEM_PROMPT = `You are My Tasco, the knowledge assistant for Tasco employees.
 Your job is to help employees find company policies, procedures, and institutional knowledge.
@@ -68,8 +77,31 @@ function asMemoryList(result) {
   return result?.results || result?.facts || result?.memories || [];
 }
 
-async function askQuestion({ query, user, topK = 8 }) {
+function resolveLocale(locale, query) {
+  const explicit = String(locale || '').toLowerCase().slice(0, 2);
+  if (explicit === 'vi' || explicit === 'en') return explicit;
+  // Heuristic: Vietnamese question → Vietnamese empty-state copy
+  if (/[ăâêôơưđáàảãạéèẻẽẹíìỉĩịóòỏõọúùủũụýỳỷỹỵ]/i.test(String(query || ''))) return 'vi';
+  return 'en';
+}
+
+/**
+ * Count only *classified* memories the user cannot see.
+ * Untagged/legacy hits are a data-quality gap, not an access denial — do not
+ * inflate deniedCount from unfiltered_count - filtered_count.
+ */
+function countAccessDenied(unfiltered, user) {
+  if (!Array.isArray(unfiltered) || !unfiltered.length || !user) return 0;
+  return unfiltered.filter((m) => {
+    const { classification } = memoryAccessMeta(m);
+    if (!classification) return false;
+    return filterMemoriesForUser([m], user).length === 0;
+  }).length;
+}
+
+async function askQuestion({ query, user, topK = 8, locale }) {
   const filter = buildMetadataFilter(user);
+  const lang = resolveLocale(locale, query);
 
   const filteredResult = await recallMemories({
     query,
@@ -82,14 +114,16 @@ async function askQuestion({ query, user, topK = 8 }) {
   // Defense in depth — never send unauthorized chunks to Gemini
   const beforePost = memories.length;
   memories = filterMemoriesForUser(memories, user);
-  const postDenied = Math.max(0, beforePost - memories.length);
+  let deniedCount = Math.max(0, beforePost - memories.length);
 
-  let deniedCount = postDenied;
   if (!filter.canSeeAll) {
     try {
       const unfilteredResult = await recallMemories({ query, tags: [], topK });
-      const unfilteredCount = asMemoryList(unfilteredResult).length;
-      deniedCount = Math.max(deniedCount, Math.max(0, unfilteredCount - memories.length));
+      const unfiltered = asMemoryList(unfilteredResult);
+      // Only score the top-K hits — weakly related restricted/confidential docs
+      // further down the list must not inflate the "hidden by access" banner.
+      const topHits = unfiltered.slice(0, topK);
+      deniedCount = Math.max(deniedCount, countAccessDenied(topHits, user));
     } catch {
       // Ignore count errors
     }
@@ -97,7 +131,7 @@ async function askQuestion({ query, user, topK = 8 }) {
 
   if (!memories.length) {
     return {
-      answer: "I couldn't find that in our knowledge base. Try rephrasing your question or contact the relevant department directly.",
+      answer: EMPTY_ANSWER[lang] || EMPTY_ANSWER.en,
       sources: [],
       confidence: 'none',
       deniedCount,

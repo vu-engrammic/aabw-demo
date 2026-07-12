@@ -30,13 +30,27 @@ async function hindsightFetch(path, options = {}) {
 
 async function retainDocument({ text, metadata = {}, mode = 'verbatim' }) {
   const tags = metadata.tags || [];
+  const documentId = metadata.source_file || metadata.document_id || undefined;
+  // Hindsight MemoryItem.metadata is additionalProperties:string — coerce values
+  const stringMeta = {};
+  for (const [k, v] of Object.entries(metadata)) {
+    if (k === 'tags') continue;
+    if (v == null) continue;
+    stringMeta[k] = typeof v === 'string' ? v : String(v);
+  }
   return hindsightFetch(`/v1/default/banks/${BANK_ID}/memories`, {
     method: 'POST',
     body: JSON.stringify({
-      content: text,
-      metadata,
-      tags,
-      type: 'world',
+      async: false,
+      items: [
+        {
+          content: text,
+          metadata: stringMeta,
+          tags,
+          document_id: documentId,
+          timestamp: 'unset',
+        },
+      ],
     }),
   });
 }

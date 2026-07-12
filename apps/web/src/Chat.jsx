@@ -5,7 +5,7 @@ import { api } from "./api";
 import { useLocale } from "./i18n.jsx";
 
 export function Chat({ user }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [query, setQuery] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [result, setResult] = React.useState(null);
@@ -29,7 +29,7 @@ export function Chat({ user }) {
     try {
       const data = await api("/chat", {
         method: "POST",
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, locale }),
       });
       setResult(data);
     } catch (err) {

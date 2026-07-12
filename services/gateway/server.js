@@ -672,9 +672,10 @@ async function handle(req, res) {
       const body = await readBody(req);
       const query = String(body.query || '').trim();
       if (!query) return send(req, res, 400, { error: 'Missing query' });
+      const locale = body.locale || req.headers['accept-language'];
 
       try {
-        const result = await askQuestion({ query, user });
+        const result = await askQuestion({ query, user, locale });
         return send(req, res, 200, {
           ...result,
           user: auth.publicUser(user),
