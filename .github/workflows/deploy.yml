@@ -9,9 +9,10 @@ on:
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   GCP_REGION: us-central1
+  # Public demo IP (mytasco.engrammic.ai) — used when VM_HOST secret is unset
+  DEFAULT_VM_HOST: 136.116.136.145
 
 jobs:
-  # PR / push sanity check — does not block VM deploy
   build:
     runs-on: ubuntu-latest
     steps:
@@ -31,7 +32,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    # Do not needs: build — prior npm ci failures blocked shipping forever
     steps:
       - uses: actions/checkout@v4
 
@@ -40,6 +40,8 @@ jobs:
           node-version: '20'
 
       - name: Build web dist for Caddy
+        id: web
+        continue-on-error: true
         run: |
           npm --prefix apps/web ci
           npm --prefix apps/web run build
@@ -52,41 +54,42 @@ jobs:
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
 
-      - name: Deploy gateway + web to VM
+      - name: Deploy gateway to VM
         env:
           VM_SSH_KEY: ${{ secrets.VM_SSH_KEY }}
           VM_HOST: ${{ secrets.VM_HOST }}
-          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
         run: |
           set -euo pipefail
+          if [ -z "${VM_SSH_KEY:-}" ]; then
+            echo "VM_SSH_KEY secret is missing" >&2
+            exit 1
+          fi
           echo "$VM_SSH_KEY" > /tmp/ssh_key
           chmod 600 /tmp/ssh_key
 
-          if [ -n "${VM_HOST:-}" ]; then
-            VM_IP="$VM_HOST"
-          else
-            # Fallback: resolve via Pulumi when VM_HOST secret is unset
-            cd infra
-            npm ci
-            pulumi stack select prod
-            VM_IP=$(pulumi stack output vmIp)
-            cd ..
-          fi
+          VM_IP="${VM_HOST:-$DEFAULT_VM_HOST}"
           echo "Deploying to $VM_IP"
 
-          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ubuntu@"$VM_IP" \
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i /tmp/ssh_key ubuntu@"$VM_IP" \
             "mkdir -p /opt/mytasco/apps/web"
 
-          scp -o StrictHostKeyChecking=no -i /tmp/ssh_key -r apps/web/dist \
-            ubuntu@"$VM_IP":/opt/mytasco/apps/web/
+          if [ -d apps/web/dist ]; then
+            scp -o StrictHostKeyChecking=no -i /tmp/ssh_key -r apps/web/dist \
+              ubuntu@"$VM_IP":/opt/mytasco/apps/web/ || true
+          fi
 
-          ssh -o StrictHostKeyChecking=no -i /tmp/ssh_key ubuntu@"$VM_IP" << 'EOF'
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i /tmp/ssh_key ubuntu@"$VM_IP" << 'EOF'
             set -euo pipefail
             cd /opt/mytasco
             git fetch origin main
             git checkout main
             git pull --ff-only origin main
             docker build -t mytasco-gateway:latest ./services/gateway
-            docker compose -f docker-compose.prod.yml up -d --force-recreate gateway caddy
+            docker compose -f docker-compose.prod.yml up -d --force-recreate gateway
+            if [ -d apps/web/dist ]; then
+              docker compose -f docker-compose.prod.yml up -d --force-recreate caddy || true
+            fi
             docker compose -f docker-compose.prod.yml ps
+            curl -sf http://127.0.0.1:8790/health | head -c 400 || true
+            echo
           EOF

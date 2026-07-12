@@ -1,7 +1,6 @@
 // apps/web/src/Upload.jsx
 import React from "react";
 import { useLocale } from "./i18n.jsx";
-<<<<<<< HEAD
 
 const DEPARTMENTS = [
   { code: "COMP", slug: "company", en: "Company", vi: "Công ty" },
@@ -29,26 +28,6 @@ function deptForUser(user) {
 export function Upload({ user }) {
   const { t, locale } = useLocale();
   const defaultDept = deptForUser(user);
-=======
-
-export function Upload({ user }) {
-  const { t } = useLocale();
-
-  const CLASSIFICATIONS = [
-    { value: "public", label: t("upload.classPublic") },
-    { value: "internal", label: t("upload.classInternal") },
-    { value: "confidential", label: t("upload.classConfidential") },
-    { value: "restricted", label: t("upload.classRestricted") },
-  ];
-
-  const UPLOAD_STEPS = [
-    t("upload.step1"),
-    t("upload.step2"),
-    t("upload.step3"),
-    t("upload.step4"),
-  ];
-
->>>>>>> 1821cc796a39f85bcd576e201f168efc20f265aa
   const [file, setFile] = React.useState(null);
   const [classification, setClassification] = React.useState("internal");
   const [team, setTeam] = React.useState(defaultDept?.en || user.department);
@@ -122,10 +101,7 @@ export function Upload({ user }) {
     <div className="upload-container">
       <h2>{t("upload.title")}</h2>
       <p className="muted">{t("upload.subtitle")}</p>
-<<<<<<< HEAD
       <p className="muted">{t("upload.oneClassWarning")}</p>
-=======
->>>>>>> 1821cc796a39f85bcd576e201f168efc20f265aa
 
       <form onSubmit={handleUpload}>
         <div
@@ -161,7 +137,6 @@ export function Upload({ user }) {
 
         <label className="field">
           <span>{t("upload.team")}</span>
-<<<<<<< HEAD
           <select value={team} onChange={(e) => setTeam(e.target.value)} disabled={uploading}>
             {DEPARTMENTS.map((d) => (
               <option key={d.code} value={d.en}>
@@ -169,9 +144,6 @@ export function Upload({ user }) {
               </option>
             ))}
           </select>
-=======
-          <input type="text" value={user.department} disabled />
->>>>>>> 1821cc796a39f85bcd576e201f168efc20f265aa
         </label>
 
         <button type="submit" className="primary" disabled={!file || uploading}>
@@ -190,7 +162,6 @@ export function Upload({ user }) {
 
       {result && (
         <div className="success-banner">
-<<<<<<< HEAD
           <strong>{result.filename || t("upload.documentFallback")}</strong>{" "}
           {t("upload.successSuffix")}
           {result.metadata?.tags?.length ? (
@@ -198,9 +169,6 @@ export function Upload({ user }) {
               tags: {result.metadata.tags.join(", ")}
             </div>
           ) : null}
-=======
-          <strong>{result.filename || t("upload.documentFallback")}</strong> {t("upload.successSuffix")}
->>>>>>> 1821cc796a39f85bcd576e201f168efc20f265aa
         </div>
       )}
 

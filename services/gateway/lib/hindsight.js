@@ -61,24 +61,15 @@ async function retainFile({ buffer, filename, mimeType, metadata = {} }) {
   return res.json();
 }
 
-<<<<<<< HEAD
 async function recallMemories({ query, tags = [], tagsMatch = 'any_strict', topK = 10 }) {
   // any_strict: OR match on tags, EXCLUDE untagged (required for RBAC)
-=======
-async function recallMemories({ query, tags = [], tagsMatch = 'any', topK = 10 }) {
->>>>>>> 1821cc796a39f85bcd576e201f168efc20f265aa
   return hindsightFetch(`/v1/default/banks/${BANK_ID}/memories/recall`, {
     method: 'POST',
     body: JSON.stringify({
       query,
       tags: tags.length ? tags : undefined,
-<<<<<<< HEAD
       tags_match: tags.length ? tagsMatch : undefined,
       max_tokens: 2000,
-=======
-      tags_match: tagsMatch,
-      max_tokens: 3000,
->>>>>>> 1821cc796a39f85bcd576e201f168efc20f265aa
       budget: 'low',
       types: ['world', 'observation'],
     }),
