@@ -99,6 +99,12 @@ infra-preview:
 ssh:
     gcloud compute ssh {{vm_name}} --zone={{vm_zone}}
 
+# Tunnel VM port 80 to localhost:8080 (access via http://localhost:8080)
+tunnel port="8080":
+    @echo "Tunneling VM port 80 to http://localhost:{{port}}"
+    @echo "Press Ctrl+C to stop"
+    gcloud compute ssh {{vm_name}} --zone={{vm_zone}} -- -N -L {{port}}:localhost:80
+
 # Tail logs on the VM (gateway + hindsight + caddy)
 vm-logs:
     gcloud compute ssh {{vm_name}} --zone={{vm_zone}} --command="cd {{remote_dir}} && docker compose -f docker-compose.prod.yml logs -f --tail=100"
