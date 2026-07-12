@@ -69,10 +69,14 @@ function Shell({ user, onLogout }) {
     <div className="shell">
       <aside className="sidebar">
         <div className="brand">
+<<<<<<< HEAD
           <div className="row split">
             <h1>My Tasco</h1>
             <LanguageToggle />
           </div>
+=======
+          <h1>{t("login.title")}</h1>
+>>>>>>> 1821cc796a39f85bcd576e201f168efc20f265aa
           <p className="eyebrow">{t("shell.brandEyebrow")}</p>
         </div>
         <nav>
@@ -96,6 +100,9 @@ function Shell({ user, onLogout }) {
         </div>
       </aside>
       <main className="content">
+        <div className="content-topbar">
+          <LanguageToggle />
+        </div>
         <Active user={user} />
       </main>
     </div>

@@ -2,8 +2,10 @@
 import React from "react";
 import Markdown from "react-markdown";
 import { api } from "./api";
+import { useLocale } from "./i18n.jsx";
 
 export function Chat({ user }) {
+  const { t } = useLocale();
   const [query, setQuery] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [result, setResult] = React.useState(null);
@@ -31,7 +33,7 @@ export function Chat({ user }) {
       });
       setResult(data);
     } catch (err) {
-      setError(err.message || "Failed to get answer");
+      setError(err.message || t("chat.failedToGetAnswer"));
     } finally {
       setLoading(false);
     }
@@ -43,13 +45,13 @@ export function Chat({ user }) {
       <div className="chat-response-area" ref={responseRef}>
         {!result && !loading && !error && (
           <div className="chat-placeholder">
-            <h2>Ask My Tasco</h2>
-            <p>Ask questions about company policies, procedures, and knowledge.</p>
+            <h2>{t("chat.placeholderTitle")}</h2>
+            <p>{t("chat.placeholderBody")}</p>
             <div className="example-queries">
-              <span>Try:</span>
-              <button type="button" onClick={() => setQuery("What is the leave policy?")}>Leave policy</button>
-              <button type="button" onClick={() => setQuery("How do I submit expenses?")}>Expense claims</button>
-              <button type="button" onClick={() => setQuery("What's the probation period?")}>Probation</button>
+              <span>{t("chat.tryLabel")}</span>
+              <button type="button" onClick={() => setQuery(t("chat.queryLeave"))}>{t("chat.exampleLeave")}</button>
+              <button type="button" onClick={() => setQuery(t("chat.queryExpense"))}>{t("chat.exampleExpense")}</button>
+              <button type="button" onClick={() => setQuery(t("chat.queryProbation"))}>{t("chat.exampleProbation")}</button>
             </div>
           </div>
         )}
@@ -57,7 +59,7 @@ export function Chat({ user }) {
         {loading && (
           <div className="chat-loading">
             <div className="spinner"></div>
-            <span>Searching knowledge base...</span>
+            <span>{t("chat.searching")}</span>
           </div>
         )}
 
@@ -67,7 +69,7 @@ export function Chat({ user }) {
           <div className="chat-result">
             <div className="answer-card">
               <div className="confidence-badge" data-level={result.confidence}>
-                {result.confidence} confidence
+                {result.confidence} {t("chat.confidence")}
               </div>
               <div className="answer-content">
                 <Markdown>{result.answer}</Markdown>
@@ -76,13 +78,13 @@ export function Chat({ user }) {
 
             {result.sources?.length > 0 && (
               <details className="sources-section" open>
-                <summary>Sources ({result.sources.length})</summary>
+                <summary>{t("chat.sources", { count: result.sources.length })}</summary>
                 <div className="sources-list">
                   {result.sources.slice(0, 5).map((src) => (
                     <div key={src.id} className="source-card">
                       <div className="source-header">
                         <span className="source-id">[{src.id}]</span>
-                        <span className="source-file">{src.file || 'knowledge base'}</span>
+                        <span className="source-file">{src.file || t("chat.knowledgeBase")}</span>
                         {src.score && <span className="source-score">{(src.score * 100).toFixed(0)}%</span>}
                       </div>
                       <p className="source-chunk">{src.chunk}</p>
@@ -94,7 +96,7 @@ export function Chat({ user }) {
 
             {result.deniedCount > 0 && (
               <div className="denied-banner">
-                {result.deniedCount} document{result.deniedCount > 1 ? "s" : ""} hidden by access level
+                {t("chat.deniedBanner", { count: result.deniedCount, plural: result.deniedCount > 1 ? "s" : "" })}
               </div>
             )}
           </div>
@@ -107,11 +109,11 @@ export function Chat({ user }) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask a question..."
+          placeholder={t("chat.inputPlaceholder")}
           disabled={loading}
         />
         <button type="submit" className="primary" disabled={loading || !query.trim()}>
-          {loading ? "..." : "Ask"}
+          {loading ? t("chat.asking") : t("chat.ask")}
         </button>
       </form>
 
