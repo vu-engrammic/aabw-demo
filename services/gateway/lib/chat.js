@@ -7,7 +7,7 @@ const { loadEnv } = require('./env');
 loadEnv();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-3.1-flash' });
+const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
 
 const SYSTEM_PROMPT = `You are a knowledge assistant for Tasco employees.
 Answer ONLY using the provided sources. If the answer isn't in the sources, say "I don't have information about that in the available documents."
